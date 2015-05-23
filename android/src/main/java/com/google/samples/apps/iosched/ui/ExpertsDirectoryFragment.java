@@ -293,7 +293,7 @@ public class ExpertsDirectoryFragment extends Fragment implements
             final MessageCardView messageCardView = (MessageCardView) view.findViewById(R.id.message_card);
             messageCardView.setListener(new MessageCardView.OnMessageCardButtonClicked() {
                 @Override
-                public void onMessageCardButtonClicked(String tag) {
+                public void onMessageCardButtonClicked(MessageCardView messageCardView, String tag) {
                     SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(getActivity());
                     sp.edit().putBoolean(PREF_SHOW_HEADER, false).commit();
                     messageCardView.dismiss(true);

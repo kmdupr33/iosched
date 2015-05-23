@@ -922,7 +922,7 @@ public class SessionsFragment extends Fragment implements
         final Activity activity = getActivity();
         card.setListener(new MessageCardView.OnMessageCardButtonClicked() {
             @Override
-            public void onMessageCardButtonClicked(final String tag) {
+            public void onMessageCardButtonClicked(MessageCardView messageCardView, final String tag) {
                 final boolean inPerson = CARD_ANSWER_ATTENDING_IN_PERSON.equals(tag);
                 card.dismiss(true);
 
@@ -955,7 +955,7 @@ public class SessionsFragment extends Fragment implements
         final Context context = getActivity().getApplicationContext();
         card.setListener(new MessageCardView.OnMessageCardButtonClicked() {
             @Override
-            public void onMessageCardButtonClicked(final String tag) {
+            public void onMessageCardButtonClicked(MessageCardView messageCardView, final String tag) {
                 card.dismiss(true);
 
                 // post delayed to give card time to animate
@@ -982,7 +982,7 @@ public class SessionsFragment extends Fragment implements
                 true, 0);
         card.setListener(new MessageCardView.OnMessageCardButtonClicked() {
             @Override
-            public void onMessageCardButtonClicked(final String tag) {
+            public void onMessageCardButtonClicked(MessageCardView messageCardView, final String tag) {
                 card.dismiss(true);
 
                 // post delayed to give card time to animate

@@ -471,7 +471,7 @@ public abstract class BaseActivity extends ActionBarActivity implements
             mNavDrawerItems.add(NAVDRAWER_ITEM_PEOPLE_IVE_MET);
         }
 
-        // If the experts directory hasn't expired, show it
+        // If the experts directory hasn't expiredpublic abstract void hidePlusOneButton();, show it
         if (!Config.hasExpertsDirectoryExpired()) {
             mNavDrawerItems.add(NAVDRAWER_ITEM_EXPERTS_DIRECTORY);
         }
@@ -1367,8 +1367,9 @@ public abstract class BaseActivity extends ActionBarActivity implements
 
         // configure its appearance according to whether or not it's selected
         titleView.setTextColor(selected ?
-                getResources().getColor(R.color.navdrawer_text_color_selected) :
-                getResources().getColor(R.color.navdrawer_text_color));
+                                       getResources()
+                                               .getColor(R.color.navdrawer_text_color_selected) :
+                                       getResources().getColor(R.color.navdrawer_text_color));
         iconView.setColorFilter(selected ?
                 getResources().getColor(R.color.navdrawer_icon_tint_selected) :
                 getResources().getColor(R.color.navdrawer_icon_tint));

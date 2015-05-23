@@ -33,7 +33,7 @@ import com.google.samples.apps.iosched.ui.BaseMapActivity;
 import com.google.samples.apps.iosched.ui.MapFragment;
 import com.google.samples.apps.iosched.ui.NearbyFragment;
 import com.google.samples.apps.iosched.ui.PartnersFragment;
-import com.google.samples.apps.iosched.ui.SessionDetailActivity;
+import com.google.samples.apps.iosched.ui.sessiondetail.SessionDetailActivity;
 import com.google.samples.apps.iosched.ui.SessionsFragment;
 import com.google.samples.apps.iosched.util.AnalyticsManager;
 import com.google.samples.apps.iosched.util.UIUtils;
