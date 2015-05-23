@@ -56,7 +56,6 @@ import com.google.samples.apps.iosched.R;
 import com.google.samples.apps.iosched.model.TagMetadata;
 import com.google.samples.apps.iosched.provider.ScheduleContract;
 import com.google.samples.apps.iosched.service.SessionAlarmService;
-import com.google.samples.apps.iosched.service.SessionCalendarService;
 import com.google.samples.apps.iosched.ui.widget.CheckableFrameLayout;
 import com.google.samples.apps.iosched.ui.widget.MessageCardView;
 import com.google.samples.apps.iosched.ui.widget.ObservableScrollView;
@@ -94,18 +93,13 @@ public class SessionDetailActivity extends BaseActivity implements
     private static final float PHOTO_ASPECT_RATIO = 1.7777777f;
 
     public static final String TRANSITION_NAME_PHOTO = "photo";
+    private final SessionDetailPresenter mSessionDetailPresenter = new SessionDetailPresenter(this);
 
     private Handler mHandler = new Handler();
     private static final int TIME_HINT_UPDATE_INTERVAL = 10000; // 10 sec
 
     private TagMetadata mTagMetadata;
 
-    private String mSessionId;
-    private Uri mSessionUri;
-
-    private long mSessionStart;
-    private long mSessionEnd;
-    private String mTitleString;
     private String mHashTag;
     private String mUrl;
     private String mRoomId;
@@ -115,8 +109,6 @@ public class SessionDetailActivity extends BaseActivity implements
     // A comma-separated list of speakers to be passed to Android Wear
     private String mSpeakers;
 
-    private boolean mStarred;
-    private boolean mInitStarred;
     private boolean mDismissedWatchLivestreamCard = false;
     private boolean mHasLivestream = false;
     private MenuItem mSocialStreamMenuItem;
@@ -206,13 +198,14 @@ public class SessionDetailActivity extends BaseActivity implements
             BeamUtils.setBeamSessionUri(this, sessionUri);
         }
 
-        mSessionUri = getIntent().getData();
+        mSessionDetailPresenter.mSessionUri = getIntent().getData();
 
-        if (mSessionUri == null) {
+        if (mSessionDetailPresenter.mSessionUri == null) {
             return;
         }
 
-        mSessionId = ScheduleContract.Sessions.getSessionId(mSessionUri);
+        mSessionDetailPresenter.mSessionId = ScheduleContract.Sessions
+                .getSessionId(mSessionDetailPresenter.mSessionUri);
 
         mFABElevation = getResources().getDimensionPixelSize(R.dimen.fab_elevation);
         mMaxHeaderElevation = getResources().getDimensionPixelSize(
@@ -256,10 +249,11 @@ public class SessionDetailActivity extends BaseActivity implements
         mAddScheduleButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                boolean starred = !mStarred;
+                boolean starred = !mSessionDetailPresenter.mStarred;
                 SessionsHelper helper = new SessionsHelper(SessionDetailActivity.this);
                 showStarred(starred, true);
-                helper.setSessionStarred(mSessionUri, starred, mTitleString);
+                helper.setSessionStarred(mSessionDetailPresenter.mSessionUri, starred,
+                                         mSessionDetailPresenter.mTitleString);
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
                     mAddScheduleButton.announceForAccessibility(starred ?
                             getString(R.string.session_details_a11y_session_added) :
@@ -274,7 +268,8 @@ public class SessionDetailActivity extends BaseActivity implements
                  * [/ANALYTICS]
                  */
                 AnalyticsManager.sendEvent(
-                        "Session", starred ? "Starred" : "Unstarred", mTitleString, 0L);
+                        "Session", starred ? "Starred" : "Unstarred",
+                        mSessionDetailPresenter.mTitleString, 0L);
             }
         });
 
@@ -401,67 +396,42 @@ public class SessionDetailActivity extends BaseActivity implements
 
     @Override
     public void onStop() {
-        super.onStop();
-        if (mInitStarred != mStarred) {
-            if (UIUtils.getCurrentTime(this) < mSessionStart) {
-                // Update Calendar event through the Calendar API on Android 4.0 or new versions.
-                Intent intent = null;
-                if (mStarred) {
-                    // Set up intent to add session to Calendar, if it doesn't exist already.
-                    intent = new Intent(SessionCalendarService.ACTION_ADD_SESSION_CALENDAR,
-                            mSessionUri);
-                    intent.putExtra(SessionCalendarService.EXTRA_SESSION_START,
-                            mSessionStart);
-                    intent.putExtra(SessionCalendarService.EXTRA_SESSION_END,
-                            mSessionEnd);
-                    intent.putExtra(SessionCalendarService.EXTRA_SESSION_ROOM, mRoomName);
-                    intent.putExtra(SessionCalendarService.EXTRA_SESSION_TITLE, mTitleString);
-                } else {
-                    // Set up intent to remove session from Calendar, if exists.
-                    intent = new Intent(SessionCalendarService.ACTION_REMOVE_SESSION_CALENDAR,
-                            mSessionUri);
-                    intent.putExtra(SessionCalendarService.EXTRA_SESSION_START,
-                            mSessionStart);
-                    intent.putExtra(SessionCalendarService.EXTRA_SESSION_END,
-                            mSessionEnd);
-                    intent.putExtra(SessionCalendarService.EXTRA_SESSION_TITLE, mTitleString);
-                }
-                intent.setClass(this, SessionCalendarService.class);
-                startService(intent);
 
-                if (mStarred) {
-                    setupNotification();
-                }
-            }
-        }
+        mSessionDetailPresenter.onStop();
     }
 
     private void setupNotification() {
         Intent scheduleIntent;
 
         // Schedule session notification
-        if (UIUtils.getCurrentTime(this) < mSessionStart) {
+        if (UIUtils.getCurrentTime(this) < mSessionDetailPresenter.mSessionStart) {
             LOGD(TAG, "Scheduling notification about session start.");
             scheduleIntent = new Intent(
                     SessionAlarmService.ACTION_SCHEDULE_STARRED_BLOCK,
                     null, this, SessionAlarmService.class);
-            scheduleIntent.putExtra(SessionAlarmService.EXTRA_SESSION_START, mSessionStart);
-            scheduleIntent.putExtra(SessionAlarmService.EXTRA_SESSION_END, mSessionEnd);
+            scheduleIntent.putExtra(SessionAlarmService.EXTRA_SESSION_START,
+                                    mSessionDetailPresenter.mSessionStart);
+            scheduleIntent.putExtra(SessionAlarmService.EXTRA_SESSION_END,
+                                    mSessionDetailPresenter.mSessionEnd);
             startService(scheduleIntent);
         } else {
             LOGD(TAG, "Not scheduling notification about session start, too late.");
         }
 
         // Schedule feedback notification
-        if (UIUtils.getCurrentTime(this) < mSessionEnd) {
+        if (UIUtils.getCurrentTime(this) < mSessionDetailPresenter.mSessionEnd) {
             LOGD(TAG, "Scheduling notification about session feedback.");
             scheduleIntent = new Intent(
                     SessionAlarmService.ACTION_SCHEDULE_FEEDBACK_NOTIFICATION,
                     null, this, SessionAlarmService.class);
-            scheduleIntent.putExtra(SessionAlarmService.EXTRA_SESSION_ID, mSessionId);
-            scheduleIntent.putExtra(SessionAlarmService.EXTRA_SESSION_START, mSessionStart);
-            scheduleIntent.putExtra(SessionAlarmService.EXTRA_SESSION_END, mSessionEnd);
-            scheduleIntent.putExtra(SessionAlarmService.EXTRA_SESSION_TITLE, mTitleString);
+            scheduleIntent.putExtra(SessionAlarmService.EXTRA_SESSION_ID,
+                                    mSessionDetailPresenter.mSessionId);
+            scheduleIntent.putExtra(SessionAlarmService.EXTRA_SESSION_START,
+                                    mSessionDetailPresenter.mSessionStart);
+            scheduleIntent.putExtra(SessionAlarmService.EXTRA_SESSION_END,
+                                    mSessionDetailPresenter.mSessionEnd);
+            scheduleIntent.putExtra(SessionAlarmService.EXTRA_SESSION_TITLE,
+                                    mSessionDetailPresenter.mTitleString);
             scheduleIntent.putExtra(SessionAlarmService.EXTRA_SESSION_ROOM, mRoomName);
             scheduleIntent.putExtra(SessionAlarmService.EXTRA_SESSION_SPEAKERS, mSpeakers);
             startService(scheduleIntent);
@@ -475,34 +445,34 @@ public class SessionDetailActivity extends BaseActivity implements
         boolean canShowLivestream = mHasLivestream;
 
         if (canShowLivestream && !mDismissedWatchLivestreamCard
-                && currentTimeMillis > mSessionStart
-                && currentTimeMillis <= mSessionEnd) {
+                && currentTimeMillis > mSessionDetailPresenter.mSessionStart
+                && currentTimeMillis <= mSessionDetailPresenter.mSessionEnd) {
             // show the "watch now" card
             showWatchNowCard();
-        } else if (!mAlreadyGaveFeedback && mInitStarred && currentTimeMillis >= (mSessionEnd -
+        } else if (!mAlreadyGaveFeedback && mSessionDetailPresenter.mInitStarred && currentTimeMillis >= (mSessionDetailPresenter.mSessionEnd -
                 Config.FEEDBACK_MILLIS_BEFORE_SESSION_END)
-                && !sDismissedFeedbackCard.contains(mSessionId)) {
+                && !sDismissedFeedbackCard.contains(mSessionDetailPresenter.mSessionId)) {
             // show the "give feedback" card
             showGiveFeedbackCard();
         }
 
         String timeHint = "";
-        long countdownMillis = mSessionStart - currentTimeMillis;
+        long countdownMillis = mSessionDetailPresenter.mSessionStart - currentTimeMillis;
 
         if (TimeUtils.hasConferenceEnded(this)) {
             // no time hint to display
             timeHint = "";
-        } else if (currentTimeMillis >= mSessionEnd) {
+        } else if (currentTimeMillis >= mSessionDetailPresenter.mSessionEnd) {
             timeHint = getString(R.string.time_hint_session_ended);
-        } else if (currentTimeMillis >= mSessionStart) {
-            long minutesAgo = (currentTimeMillis - mSessionStart) / 60000;
+        } else if (currentTimeMillis >= mSessionDetailPresenter.mSessionStart) {
+            long minutesAgo = (currentTimeMillis - mSessionDetailPresenter.mSessionStart) / 60000;
             if (minutesAgo > 1) {
                 timeHint = getString(R.string.time_hint_started_min, minutesAgo);
             } else {
                 timeHint = getString(R.string.time_hint_started_just);
             }
         } else if (countdownMillis > 0 && countdownMillis < Config.HINT_TIME_BEFORE_SESSION) {
-            long millisUntil = mSessionStart - currentTimeMillis;
+            long millisUntil = mSessionDetailPresenter.mSessionStart - currentTimeMillis;
             long minutesUntil = millisUntil / 60000 + (millisUntil % 1000 > 0 ? 1 : 0);
             if (minutesUntil > 1) {
                 timeHint = getString(R.string.time_hint_about_to_start_min, minutesUntil);
@@ -556,7 +526,7 @@ public class SessionDetailActivity extends BaseActivity implements
             return;
         }
 
-        mTitleString = cursor.getString(SessionsQuery.TITLE);
+        mSessionDetailPresenter.mTitleString = cursor.getString(SessionsQuery.TITLE);
         mSessionColor = cursor.getInt(SessionsQuery.COLOR);
 
         if (mSessionColor == 0) {
@@ -574,17 +544,18 @@ public class SessionDetailActivity extends BaseActivity implements
         mHasLivestream = !TextUtils.isEmpty(mLivestreamUrl);
 
         // Format the time this session occupies
-        mSessionStart = cursor.getLong(SessionsQuery.START);
-        mSessionEnd = cursor.getLong(SessionsQuery.END);
+        mSessionDetailPresenter.mSessionStart = cursor.getLong(SessionsQuery.START);
+        mSessionDetailPresenter.mSessionEnd = cursor.getLong(SessionsQuery.END);
         mRoomName = cursor.getString(SessionsQuery.ROOM_NAME);
         mSpeakers = cursor.getString(SessionsQuery.SPEAKER_NAMES);
         String subtitle = UIUtils.formatSessionSubtitle(
-                mSessionStart, mSessionEnd, mRoomName, mBuffer, this);
+                mSessionDetailPresenter.mSessionStart, mSessionDetailPresenter.mSessionEnd, mRoomName, mBuffer, this);
         if (mHasLivestream) {
-            subtitle += " " + UIUtils.getLiveBadgeText(this, mSessionStart, mSessionEnd);
+            subtitle += " " + UIUtils.getLiveBadgeText(this, mSessionDetailPresenter.mSessionStart,
+                                                       mSessionDetailPresenter.mSessionEnd);
         }
 
-        mTitle.setText(mTitleString);
+        mTitle.setText(mSessionDetailPresenter.mTitleString);
         mSubtitle.setText(subtitle);
 
         for (int resId : SECTION_HEADER_RES_IDS) {
@@ -642,7 +613,7 @@ public class SessionDetailActivity extends BaseActivity implements
         tryRenderTags();
 
         if (!mIsKeynote) {
-            showStarredDeferred(mInitStarred = inMySchedule, false);
+            showStarredDeferred(mSessionDetailPresenter.mInitStarred = inMySchedule, false);
         }
 
         final String sessionAbstract = cursor.getString(SessionsQuery.ABSTRACT);
@@ -774,15 +745,15 @@ public class SessionDetailActivity extends BaseActivity implements
 
         long currentTimeMillis = UIUtils.getCurrentTime(this);
         if (mHasLivestream
-                && currentTimeMillis > mSessionStart
-                && currentTimeMillis <= mSessionEnd) {
+                && currentTimeMillis > mSessionDetailPresenter.mSessionStart
+                && currentTimeMillis <= mSessionDetailPresenter.mSessionEnd) {
             links.add(new Pair<Integer, Object>(
                     R.string.session_link_livestream,
                     getWatchLiveIntent(this)));
         }
 
         // Add session feedback link, if appropriate
-        if (!mAlreadyGaveFeedback && currentTimeMillis > mSessionEnd
+        if (!mAlreadyGaveFeedback && currentTimeMillis > mSessionDetailPresenter.mSessionEnd
                 - Config.FEEDBACK_MILLIS_BEFORE_SESSION_END) {
             links.add(new Pair<Integer, Object>(
                     R.string.session_feedback_submitlink,
@@ -880,7 +851,7 @@ public class SessionDetailActivity extends BaseActivity implements
             return YouTubeIntents.createPlayVideoIntentWithOptions(
                     context, youtubeVideoId, true, false);
         }
-        return new Intent(Intent.ACTION_VIEW, mSessionUri).setClass(context,
+        return new Intent(Intent.ACTION_VIEW, mSessionDetailPresenter.mSessionUri).setClass(context,
                 SessionLivestreamActivity.class);
     }
 
@@ -928,11 +899,12 @@ public class SessionDetailActivity extends BaseActivity implements
                      * LABEL:     session title/subtitle
                      * [/ANALYTICS]
                      */
-                    AnalyticsManager.sendEvent("Session", "Feedback", mTitleString, 0L);
+                    AnalyticsManager.sendEvent("Session", "Feedback",
+                                               mSessionDetailPresenter.mTitleString, 0L);
                     Intent intent = getFeedbackIntent();
                     startActivity(intent);
                 } else {
-                    sDismissedFeedbackCard.add(mSessionId);
+                    sDismissedFeedbackCard.add(mSessionDetailPresenter.mSessionId);
                     messageCardView.dismiss();
                 }
             }
@@ -940,7 +912,7 @@ public class SessionDetailActivity extends BaseActivity implements
     }
 
     private Intent getFeedbackIntent() {
-        return new Intent(Intent.ACTION_VIEW, mSessionUri, this,
+        return new Intent(Intent.ACTION_VIEW, mSessionDetailPresenter.mSessionUri, this,
                 SessionFeedbackActivity.class);
     }
 
@@ -965,9 +937,10 @@ public class SessionDetailActivity extends BaseActivity implements
     }
 
     private void showStarred(boolean starred, boolean allowAnimate) {
-        mStarred = starred;
 
-        mAddScheduleButton.setChecked(mStarred, allowAnimate);
+        mSessionDetailPresenter.mStarred = starred;
+
+        mAddScheduleButton.setChecked(mSessionDetailPresenter.mStarred, allowAnimate);
 
         ImageView iconView = (ImageView) mAddScheduleButton.findViewById(R.id.add_schedule_icon);
         getLUtils().setOrAnimatePlusCheckIcon(iconView, starred, allowAnimate);
@@ -981,7 +954,7 @@ public class SessionDetailActivity extends BaseActivity implements
             @Override
             public void run() {
                 new SessionsHelper(SessionDetailActivity.this).tryConfigureShareMenuItem(mShareMenuItem,
-                        R.string.share_template, mTitleString, mHashTag, mUrl);
+                        R.string.share_template, mSessionDetailPresenter.mTitleString, mHashTag, mUrl);
             }
         });
         tryExecuteDeferredUiOperations();
@@ -1101,14 +1074,15 @@ public class SessionDetailActivity extends BaseActivity implements
                  * LABEL:     session title/subtitle
                  * [/ANALYTICS]
                  */
-                AnalyticsManager.sendEvent("Session", "Map", mTitleString, 0L);
+                AnalyticsManager.sendEvent("Session", "Map", mSessionDetailPresenter.mTitleString, 0L);
                 helper.startMapActivity(mRoomId);
                 return true;
 
             case R.id.menu_share:
                 // On ICS+ devices, we normally won't reach this as ShareActionProvider will handle
                 // sharing.
-                helper.shareSession(this, R.string.share_template, mTitleString,
+                helper.shareSession(this, R.string.share_template,
+                                    mSessionDetailPresenter.mTitleString,
                         mHashTag, mUrl);
                 return true;
 
@@ -1121,7 +1095,8 @@ public class SessionDetailActivity extends BaseActivity implements
                      * LABEL:     session title/subtitle
                      * [/ANALYTICS]
                      */
-                    AnalyticsManager.sendEvent("Session", "Stream", mTitleString, 0L);
+                    AnalyticsManager.sendEvent("Session", "Stream",
+                                               mSessionDetailPresenter.mTitleString, 0L);
                     UIUtils.showHashtagStream(this, mHashTag);
                 }
                 return true;
@@ -1144,7 +1119,8 @@ public class SessionDetailActivity extends BaseActivity implements
          * LABEL:     The session's title/subtitle.
          * [/ANALYTICS]
          */
-        AnalyticsManager.sendEvent("Session", getString(actionId), mTitleString, 0L);
+        AnalyticsManager.sendEvent("Session", getString(actionId),
+                                   mSessionDetailPresenter.mTitleString, 0L);
     }
 
     /**
@@ -1246,14 +1222,16 @@ public class SessionDetailActivity extends BaseActivity implements
     public Loader<Cursor> onCreateLoader(int id, Bundle data) {
         CursorLoader loader = null;
         if (id == SessionsQuery._TOKEN){
-            loader = new CursorLoader(this, mSessionUri, SessionsQuery.PROJECTION, null,
+            loader = new CursorLoader(this, mSessionDetailPresenter.mSessionUri, SessionsQuery.PROJECTION, null,
                     null, null);
-        } else if (id == SpeakersQuery._TOKEN  && mSessionUri != null){
-            Uri speakersUri = ScheduleContract.Sessions.buildSpeakersDirUri(mSessionId);
+        } else if (id == SpeakersQuery._TOKEN  && mSessionDetailPresenter.mSessionUri != null){
+            Uri speakersUri = ScheduleContract.Sessions.buildSpeakersDirUri(
+                    mSessionDetailPresenter.mSessionId);
             loader = new CursorLoader(this, speakersUri, SpeakersQuery.PROJECTION, null,
                     null, ScheduleContract.Speakers.DEFAULT_SORT);
         } else if (id == FeedbackQuery._TOKEN) {
-            Uri feedbackUri = ScheduleContract.Feedback.buildFeedbackUri(mSessionId);
+            Uri feedbackUri = ScheduleContract.Feedback.buildFeedbackUri(
+                    mSessionDetailPresenter.mSessionId);
             loader = new CursorLoader(this, feedbackUri, FeedbackQuery.PROJECTION, null,
                     null, null);
         } else if (id == TAG_METADATA_TOKEN) {
