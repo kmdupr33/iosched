@@ -40,6 +40,7 @@ import java.util.List;
 
 import static com.google.samples.apps.iosched.util.LogUtils.LOGD;
 
+//TODO Consider breaking this class out into seperate binder classes. It has way to many dependencies and does too much.
 public class SessionDetailPresenter implements LoaderManager.LoaderCallbacks<Cursor>,MessageCardView.OnMessageCardButtonClicked {
 
     // this set stores the session IDs for which the user has dismissed the
@@ -324,6 +325,7 @@ public class SessionDetailPresenter implements LoaderManager.LoaderCallbacks<Cur
         cursor.close();
     }
 
+    //TODO Consider adding layer between loadermanager and presenter so that binders and/or presenters don't have to deal with cursors and to facilitate mocking for tests
     void startLoad(LoaderManager manager) {
 
         manager.initLoader(SessionsQuery._TOKEN, null, this);
