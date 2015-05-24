@@ -5,6 +5,7 @@ import android.content.ContextWrapper;
 import android.content.CursorLoader;
 import android.content.Intent;
 import android.content.Loader;
+import android.content.res.Resources;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
@@ -13,22 +14,20 @@ import android.os.Handler;
 import android.text.TextUtils;
 import android.util.Pair;
 import android.view.MenuItem;
-import android.view.View;
 
-import com.bumptech.glide.request.bitmap.RequestListener;
-import com.bumptech.glide.request.target.Target;
 import com.google.android.youtube.player.YouTubeIntents;
 import com.google.samples.apps.iosched.Config;
 import com.google.samples.apps.iosched.R;
 import com.google.samples.apps.iosched.model.TagMetadata;
 import com.google.samples.apps.iosched.provider.ScheduleContract;
+import com.google.samples.apps.iosched.repositories.AccountRepository;
 import com.google.samples.apps.iosched.service.SessionAlarmService;
-import com.google.samples.apps.iosched.service.SessionCalendarService;
+import com.google.samples.apps.iosched.service.SessionCalendarServiceStarter;
 import com.google.samples.apps.iosched.ui.SessionFeedbackActivity;
 import com.google.samples.apps.iosched.ui.SessionLivestreamActivity;
 import com.google.samples.apps.iosched.ui.widget.MessageCardView;
-import com.google.samples.apps.iosched.util.AccountUtils;
 import com.google.samples.apps.iosched.util.AnalyticsManager;
+import com.google.samples.apps.iosched.util.ColorUtils;
 import com.google.samples.apps.iosched.util.ImageLoader;
 import com.google.samples.apps.iosched.util.SessionsHelper;
 import com.google.samples.apps.iosched.util.TimeUtils;
@@ -82,12 +81,22 @@ public class SessionDetailPresenter implements LoaderManager.LoaderCallbacks<Cur
     private Handler mHandler = new Handler();
     private boolean mAlreadyGaveFeedback;
     private boolean mDismissedWatchLivestreamCard;
+    private ColorUtils mColorUtils;
+    private AccountRepository mAccountRepository;
+    private Resources mResources;
+    private SessionCalendarServiceStarter mSessionCalendarServiceStarter;
 
     public SessionDetailPresenter(SessionDetailActivity mSessionDetailActivity,
-                                  ImageLoader noPlaceholderImageLoader) {
+                                  ImageLoader noPlaceholderImageLoader, ColorUtils colorUtils,
+                                  AccountRepository accountRepository, Resources resources,
+                                  SessionCalendarServiceStarter sessionCalendarServiceStarter) {
 
         this.mSessionDetailActivity = mSessionDetailActivity;
         mNoPlaceholderImageLoader = noPlaceholderImageLoader;
+        mColorUtils = colorUtils;
+        mAccountRepository = accountRepository;
+        mResources = resources;
+        mSessionCalendarServiceStarter = sessionCalendarServiceStarter;
     }
 
     public void onStop() {
@@ -97,29 +106,13 @@ public class SessionDetailPresenter implements LoaderManager.LoaderCallbacks<Cur
                 // Update Calendar event through the Calendar API on Android 4.0 or new versions.
                 Intent intent;
                 if (mStarred) {
-                    // Set up intent to add session to Calendar, if it doesn't exist already.
-                    intent = new Intent(SessionCalendarService.ACTION_ADD_SESSION_CALENDAR,
-                                        mSessionUri);
-                    intent.putExtra(SessionCalendarService.EXTRA_SESSION_START,
-                                    mSessionStart);
-                    intent.putExtra(SessionCalendarService.EXTRA_SESSION_END,
-                                    mSessionEnd);
-                    intent.putExtra(SessionCalendarService.EXTRA_SESSION_ROOM,
-                                    mRoomName);
-                    intent.putExtra(SessionCalendarService.EXTRA_SESSION_TITLE, mTitleString);
+                    mSessionCalendarServiceStarter.startAddSessionService(mSessionUri,
+                                                                          mSessionStart,
+                                                                          mSessionEnd, mRoomName,
+                                                                          mTitleString);
                 } else {
-                    // Set up intent to remove session from Calendar, if exists.
-                    intent = new Intent(SessionCalendarService.ACTION_REMOVE_SESSION_CALENDAR,
-                                        mSessionUri);
-                    intent.putExtra(SessionCalendarService.EXTRA_SESSION_START,
-                                    mSessionStart);
-                    intent.putExtra(SessionCalendarService.EXTRA_SESSION_END,
-                                    mSessionEnd);
-                    intent.putExtra(SessionCalendarService.EXTRA_SESSION_TITLE, mTitleString);
+                    mSessionCalendarServiceStarter.startRemoveSessionService(mSessionUri, mSessionStart, mSessionEnd, mTitleString);
                 }
-                intent.setClass(mSessionDetailActivity, SessionCalendarService.class);
-                mSessionDetailActivity.startService(intent);
-
                 if (mStarred) {
                     setupNotification(mSessionDetailActivity, mSessionDetailActivity);
                 }
@@ -187,11 +180,10 @@ public class SessionDetailPresenter implements LoaderManager.LoaderCallbacks<Cur
 
         if (sessionColor == 0) {
             // no color -- use default
-            sessionColor = mSessionDetailActivity.getResources().getColor(R.color.default_session_color);
+            sessionColor = mResources.getColor(R.color.default_session_color);
         } else {
             // make sure it's opaque
-            sessionColor = UIUtils.setColorAlpha(
-                    sessionColor, 255);
+            sessionColor = mColorUtils.setColorAlpha(sessionColor, 255);
         }
 
         mSessionDetailActivity.renderSessionColor(sessionColor);
@@ -205,15 +197,8 @@ public class SessionDetailPresenter implements LoaderManager.LoaderCallbacks<Cur
         mSessionEnd = cursor.getLong(SessionsQuery.END);
         mRoomName = cursor.getString(SessionsQuery.ROOM_NAME);
         mSpeakers = cursor.getString(SessionsQuery.SPEAKER_NAMES);
-        String subtitle = UIUtils.formatSessionSubtitle(
-                mSessionStart, mSessionEnd, mRoomName, mBuffer,
-                mSessionDetailActivity);
-        if (mHasLivestream) {
-            subtitle += " " + UIUtils.getLiveBadgeText(mSessionDetailActivity, mSessionStart,
-                                                       mSessionEnd);
-        }
 
-        mSessionDetailActivity.renderTitle(mTitleString, subtitle);
+        mSessionDetailActivity.renderTitle(mTitleString, mSessionStart, mSessionEnd, mRoomName, mHasLivestream);
 
         String photo = cursor.getString(SessionsQuery.PHOTO_URL);
         if (!TextUtils.isEmpty(photo)) {
@@ -242,10 +227,8 @@ public class SessionDetailPresenter implements LoaderManager.LoaderCallbacks<Cur
         // from the schedule (it is auto added to schedule on sync)
         mTagsString = cursor.getString(SessionsQuery.TAGS);
         mIsKeynote = mTagsString.contains(Config.Tags.SPECIAL_KEYNOTE);
-        mSessionDetailActivity.mAddScheduleButton.setVisibility(
-                (AccountUtils.hasActiveAccount(
-                        mSessionDetailActivity) && !mIsKeynote)
-                        ? View.VISIBLE : View.INVISIBLE);
+        boolean shouldShowAddScheduleButton = mAccountRepository.hasActiveAccount(mSessionDetailActivity) && !mIsKeynote;
+        mSessionDetailActivity.setAddScheduleButtonEnabled(shouldShowAddScheduleButton);
 
         tryRenderTags();
 
@@ -358,7 +341,7 @@ public class SessionDetailPresenter implements LoaderManager.LoaderCallbacks<Cur
 
         // Refresh whether or not feedback has been submitted
         mSessionDetailActivity.getLoaderManager().restartLoader(FeedbackQuery._TOKEN, null,
-                                                  this);
+                                                                this);
     }
 
     @Override
@@ -608,10 +591,14 @@ public class SessionDetailPresenter implements LoaderManager.LoaderCallbacks<Cur
                 SessionFeedbackActivity.class);
     }
 
+    public void onSessionStarred() {
+        mStarred = !mStarred;
+    }
+
     /**
      * {@link ScheduleContract.Sessions} query parameters.
      */
-    interface SessionsQuery {
+    public interface SessionsQuery {
         int _TOKEN = 0x1;
 
         String[] PROJECTION = {

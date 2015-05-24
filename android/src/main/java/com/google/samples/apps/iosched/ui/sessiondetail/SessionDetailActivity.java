@@ -45,6 +45,8 @@ import com.google.android.gms.plus.PlusOneButton;
 import com.google.samples.apps.iosched.R;
 import com.google.samples.apps.iosched.model.TagMetadata;
 import com.google.samples.apps.iosched.provider.ScheduleContract;
+import com.google.samples.apps.iosched.repositories.AccountRepository;
+import com.google.samples.apps.iosched.service.SessionCalendarServiceStarter;
 import com.google.samples.apps.iosched.ui.BaseActivity;
 import com.google.samples.apps.iosched.ui.MyScheduleActivity;
 import com.google.samples.apps.iosched.ui.widget.CheckableFrameLayout;
@@ -52,6 +54,7 @@ import com.google.samples.apps.iosched.ui.widget.MessageCardView;
 import com.google.samples.apps.iosched.ui.widget.ObservableScrollView;
 import com.google.samples.apps.iosched.util.AnalyticsManager;
 import com.google.samples.apps.iosched.util.BeamUtils;
+import com.google.samples.apps.iosched.util.ColorUtils;
 import com.google.samples.apps.iosched.util.ImageLoader;
 import com.google.samples.apps.iosched.util.LogUtils;
 import com.google.samples.apps.iosched.util.SessionsHelper;
@@ -171,7 +174,10 @@ public class SessionDetailActivity extends BaseActivity implements
             mNoPlaceholderImageLoader = new ImageLoader(this);
         }
 
-        mSessionDetailPresenter = new SessionDetailPresenter(this, mNoPlaceholderImageLoader);
+        mSessionDetailPresenter = new SessionDetailPresenter(this, mNoPlaceholderImageLoader,
+                                                             new ColorUtils(), new AccountRepository(),
+                                                             getResources(),
+                                                             new SessionCalendarServiceStarter(this));
         mSessionDetailPresenter.mSessionUri = getIntent().getData();
 
         if (mSessionDetailPresenter.mSessionUri == null) {
@@ -217,6 +223,8 @@ public class SessionDetailActivity extends BaseActivity implements
             @Override
             public void onClick(View view) {
                 boolean starred = !mSessionDetailPresenter.mStarred;
+                mSessionDetailPresenter.onSessionStarred();
+                //TODO Move this to presenter
                 SessionsHelper helper = new SessionsHelper(SessionDetailActivity.this);
                 showStarred(starred, true);
                 helper.setSessionStarred(mSessionDetailPresenter.mSessionUri, starred,
@@ -484,10 +492,18 @@ public class SessionDetailActivity extends BaseActivity implements
 
     }
 
-    public void renderTitle(String titleString, String subtitle) {
+    public void renderTitle(String titleString, long start, long end,
+                            String roomName, boolean liveStreamUrl) {
+        //TODO Break this out into its own presenter and viewholder for reuse in SessionsFragment (and because it follows the general pattern for creating unit testable, dynamically constructed views)
+        String subtitle = UIUtils.formatSessionSubtitle(
+                start, end, roomName, new StringBuilder(),
+                this);
+        if (mHasLivestream) {
+            subtitle += " " + UIUtils.getLiveBadgeText(this, start,
+                                                       end);
+        }
         mTitle.setText(titleString);
         mSubtitle.setText(subtitle);
-
     }
 
     public void renderSessionAbstract(String sessionAbstract) {
@@ -713,5 +729,9 @@ public class SessionDetailActivity extends BaseActivity implements
                                                     recomputePhotoAndScrollingMetrics();
                                                 }
                                             });
+    }
+
+    public void setAddScheduleButtonEnabled(boolean shouldShowAddScheduleButton) {
+        mAddScheduleButton.setVisibility(shouldShowAddScheduleButton ? View.VISIBLE : View.INVISIBLE);
     }
 }
