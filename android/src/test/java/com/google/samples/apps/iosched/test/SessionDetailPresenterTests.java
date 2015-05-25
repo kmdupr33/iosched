@@ -19,10 +19,12 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.verification.VerificationMode;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Matchers.anyString;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -70,7 +72,9 @@ public class SessionDetailPresenterTests {
         sessionDetailPresenter.onSessionStarred();
         sessionDetailPresenter.onStop();
 
-        verify(mSessionCalendarServiceStarter).startAddSessionService(any(Uri.class), anyLong(), anyLong(), anyString(), anyString());
+        verify(mSessionCalendarServiceStarter).startAddSessionService(any(Uri.class), anyLong(),
+                                                                      anyLong(), anyString(),
+                                                                      anyString());
     }
 
     @Test
@@ -84,8 +88,25 @@ public class SessionDetailPresenterTests {
         sessionDetailPresenter.onLoadFinished(mLoader, mCursor);
         sessionDetailPresenter.onStop();
 
-        verify(mSessionCalendarServiceStarter).startRemoveSessionService(any(Uri.class), anyLong(), anyLong(), anyString());
+        verify(mSessionCalendarServiceStarter).startRemoveSessionService(any(Uri.class), anyLong(),
+                                                                         anyLong(), anyString());
     }
+
+    @Test
+    public void shouldDisplayFeedbackCard() {
+
+        when(mCursor.getInt(SessionsQuery.IN_MY_SCHEDULE)).thenReturn(1);
+        when(mCursor.getLong(SessionsQuery.START)).thenReturn(System.currentTimeMillis() - 1000);
+        SessionDetailPresenter sessionDetailPresenter = new SessionDetailPresenter(
+                mSessionDetailActivity,
+                mImageLoader, mColorUtils, mAccountRepository, mResources,
+                mSessionCalendarServiceStarter);
+
+        sessionDetailPresenter.onLoadFinished(mLoader, mCursor);
+
+        verify(mSessionDetailActivity, never()).hideFeedbackView();
+    }
+
 
     @Before
     public void mockCursorReturnValues() {
