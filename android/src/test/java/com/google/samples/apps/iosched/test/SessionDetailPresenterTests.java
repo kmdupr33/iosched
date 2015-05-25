@@ -1,6 +1,5 @@
 package com.google.samples.apps.iosched.test;
 
-import android.content.Intent;
 import android.content.Loader;
 import android.content.res.Resources;
 import android.database.Cursor;
@@ -19,7 +18,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
-import org.mockito.verification.VerificationMode;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyLong;
