@@ -23,5 +23,6 @@
     <item name="tag_person_id" type="id"/>
     <item name="tag_person_name" type="id"/>
     <item name="tag_person_note" type="id"/>
+    <item name="launch_next_activity_button" type="id"/>
 
 </resources>

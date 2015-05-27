@@ -29,6 +29,8 @@ import static org.mockito.Mockito.when;
 /**
  *
  * Created by MattDupree on 5/24/15.
+ *
+ * TODO Tests are not as clean as I'd like. They should be cleaner once the presenter is broken out into binders
  */
 @RunWith(MockitoJUnitRunner.class)
 public class SessionDetailPresenterTests {
@@ -57,19 +59,23 @@ public class SessionDetailPresenterTests {
     @Mock
     SessionCalendarServiceStarter mSessionCalendarServiceStarter;
 
+    //How to write a unit test
     @Test
     public void shouldLaunchAddSessionToCalendarService() {
 
+        //Arrange
         when(mCursor.getInt(SessionsQuery.IN_MY_SCHEDULE)).thenReturn(0);
         when(mCursor.getLong(SessionsQuery.START)).thenReturn(System.currentTimeMillis() + 10000);
+        //Notice dependency injection is crucial
         SessionDetailPresenter sessionDetailPresenter = new SessionDetailPresenter(
                 mSessionDetailActivity, mImageLoader, mColorUtils, mAccountRepository, mResources,
                 mSessionCalendarServiceStarter);
 
         sessionDetailPresenter.onLoadFinished(mLoader, mCursor);
         sessionDetailPresenter.onSessionStarred();
+        //Act
         sessionDetailPresenter.onStop();
-
+        //Assert
         verify(mSessionCalendarServiceStarter).startAddSessionService(any(Uri.class), anyLong(),
                                                                       anyLong(), anyString(),
                                                                       anyString());
