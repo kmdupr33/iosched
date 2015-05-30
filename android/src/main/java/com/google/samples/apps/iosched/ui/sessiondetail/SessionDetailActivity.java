@@ -56,7 +56,6 @@ import com.google.samples.apps.iosched.util.AnalyticsManager;
 import com.google.samples.apps.iosched.util.BeamUtils;
 import com.google.samples.apps.iosched.util.ColorUtils;
 import com.google.samples.apps.iosched.util.ImageLoader;
-import com.google.samples.apps.iosched.util.LogUtils;
 import com.google.samples.apps.iosched.util.SessionsHelper;
 import com.google.samples.apps.iosched.util.UIUtils;
 
@@ -69,7 +68,6 @@ import java.util.List;
  */
 public class SessionDetailActivity extends BaseActivity implements
         ObservableScrollView.Callbacks {
-    private static final String TAG = LogUtils.makeLogTag(SessionDetailActivity.class);
 
     private static final int[] SECTION_HEADER_RES_IDS = {
             R.id.session_links_header,
@@ -84,9 +82,6 @@ public class SessionDetailActivity extends BaseActivity implements
 
     private Handler mHandler = new Handler();
 
-
-
-    private boolean mDismissedWatchLivestreamCard = false;
     private boolean mHasLivestream = false;
     private MenuItem mSocialStreamMenuItem;
     private MenuItem mShareMenuItem;
@@ -106,12 +101,8 @@ public class SessionDetailActivity extends BaseActivity implements
     private View mHeaderBox;
     private View mDetailsContainer;
 
-    private boolean mSessionCursor = false;
-    private boolean mSpeakersCursor = false;
-    private boolean mHasSummaryContent = false;
-
     private ImageLoader mSpeakersImageLoader, mNoPlaceholderImageLoader;
-    private List<Runnable> mDeferredUiOperations = new ArrayList<Runnable>();
+    private List<Runnable> mDeferredUiOperations = new ArrayList<>();
 
     private int mPhotoHeightPixels;
     private int mHeaderHeightPixels;
@@ -174,7 +165,7 @@ public class SessionDetailActivity extends BaseActivity implements
             mNoPlaceholderImageLoader = new ImageLoader(this);
         }
 
-        mSessionDetailPresenter = new SessionDetailPresenter(this, mNoPlaceholderImageLoader,
+        mSessionDetailPresenter = new SessionDetailPresenter(this,
                                                              new ColorUtils(), new AccountRepository(),
                                                              getResources(),
                                                              new SessionCalendarServiceStarter(this));
@@ -455,9 +446,9 @@ public class SessionDetailActivity extends BaseActivity implements
         }
     }
 
-    void updateEmptyView() {
+    void updateEmptyView(boolean speakersCursor, boolean sessionCursor, boolean hasSummaryContent) {
         findViewById(android.R.id.empty).setVisibility(
-                (mSpeakersCursor && mSessionCursor && !mHasSummaryContent)
+                (speakersCursor && sessionCursor && !hasSummaryContent)
                         ? View.VISIBLE
                         : View.GONE);
     }
@@ -566,7 +557,7 @@ public class SessionDetailActivity extends BaseActivity implements
 
 
 
-    public void onSpeakdersQueryCompleted() {
+    public void onSpeakersQueryCompleted() {
         mSpeakersGroup = (ViewGroup) findViewById(R.id.session_speakers_block);
 
     }

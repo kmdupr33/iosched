@@ -59,7 +59,6 @@ public class SessionDetailPresenterTests {
     @Mock
     SessionCalendarServiceStarter mSessionCalendarServiceStarter;
 
-    //How to write a unit test
     @Test
     public void shouldLaunchAddSessionToCalendarService() {
 
@@ -68,7 +67,7 @@ public class SessionDetailPresenterTests {
         when(mCursor.getLong(SessionsQuery.START)).thenReturn(System.currentTimeMillis() + 10000);
         //Notice dependency injection is crucial
         SessionDetailPresenter sessionDetailPresenter = new SessionDetailPresenter(
-                mSessionDetailActivity, mImageLoader, mColorUtils, mAccountRepository, mResources,
+                mSessionDetailActivity, mColorUtils, mAccountRepository, mResources,
                 mSessionCalendarServiceStarter);
 
         sessionDetailPresenter.onLoadFinished(mLoader, mCursor);
@@ -86,7 +85,7 @@ public class SessionDetailPresenterTests {
         when(mCursor.getInt(SessionsQuery.IN_MY_SCHEDULE)).thenReturn(1);
         when(mCursor.getLong(SessionsQuery.START)).thenReturn(System.currentTimeMillis() + 10000);
         SessionDetailPresenter sessionDetailPresenter = new SessionDetailPresenter(
-                mSessionDetailActivity, mImageLoader, mColorUtils, mAccountRepository, mResources,
+                mSessionDetailActivity, mColorUtils, mAccountRepository, mResources,
                 mSessionCalendarServiceStarter);
 
         sessionDetailPresenter.onLoadFinished(mLoader, mCursor);
@@ -103,7 +102,7 @@ public class SessionDetailPresenterTests {
         when(mCursor.getLong(SessionsQuery.START)).thenReturn(System.currentTimeMillis() - 1000);
         SessionDetailPresenter sessionDetailPresenter = new SessionDetailPresenter(
                 mSessionDetailActivity,
-                mImageLoader, mColorUtils, mAccountRepository, mResources,
+                mColorUtils, mAccountRepository, mResources,
                 mSessionCalendarServiceStarter);
 
         sessionDetailPresenter.onLoadFinished(mLoader, mCursor);

@@ -1,7 +1,6 @@
 package com.google.samples.apps.iosched.ui.sessiondetail;
 
 import android.app.LoaderManager;
-import android.content.ContextWrapper;
 import android.content.CursorLoader;
 import android.content.Intent;
 import android.content.Loader;
@@ -28,7 +27,6 @@ import com.google.samples.apps.iosched.ui.SessionLivestreamActivity;
 import com.google.samples.apps.iosched.ui.widget.MessageCardView;
 import com.google.samples.apps.iosched.util.AnalyticsManager;
 import com.google.samples.apps.iosched.util.ColorUtils;
-import com.google.samples.apps.iosched.util.ImageLoader;
 import com.google.samples.apps.iosched.util.SessionsHelper;
 import com.google.samples.apps.iosched.util.TimeUtils;
 import com.google.samples.apps.iosched.util.UIUtils;
@@ -75,9 +73,7 @@ public class SessionDetailPresenter implements LoaderManager.LoaderCallbacks<Cur
     private boolean mIsKeynote;
     private String mLiveStreamUrl;
     private boolean mHasLivestream;
-    private StringBuilder mBuffer = new StringBuilder();
 
-    private ImageLoader mNoPlaceholderImageLoader;
     private Runnable mTimeHintUpdaterRunnable;
     private Handler mHandler = new Handler();
     private boolean mAlreadyGaveFeedback;
@@ -86,14 +82,17 @@ public class SessionDetailPresenter implements LoaderManager.LoaderCallbacks<Cur
     private AccountRepository mAccountRepository;
     private Resources mResources;
     private SessionCalendarServiceStarter mSessionCalendarServiceStarter;
+    private boolean mSpeakersCursor;
+    private boolean mSessionCursor;
+    private boolean mHasSummaryContent;
 
-    public SessionDetailPresenter(SessionDetailActivity mSessionDetailActivity,
-                                  ImageLoader noPlaceholderImageLoader, ColorUtils colorUtils,
-                                  AccountRepository accountRepository, Resources resources,
+    public SessionDetailPresenter(SessionDetailActivity sessionDetailActivity,
+                                  ColorUtils colorUtils,
+                                  AccountRepository accountRepository,
+                                  Resources resources,
                                   SessionCalendarServiceStarter sessionCalendarServiceStarter) {
 
-        this.mSessionDetailActivity = mSessionDetailActivity;
-        mNoPlaceholderImageLoader = noPlaceholderImageLoader;
+        mSessionDetailActivity = sessionDetailActivity;
         mColorUtils = colorUtils;
         mAccountRepository = accountRepository;
         mResources = resources;
@@ -103,9 +102,8 @@ public class SessionDetailPresenter implements LoaderManager.LoaderCallbacks<Cur
     public void onStop() {
 
         if (mInitStarred != mStarred) {
-            if (UIUtils.getCurrentTime(mSessionDetailActivity) < mSessionStart) {
+            if (System.currentTimeMillis() < mSessionStart) {
                 // Update Calendar event through the Calendar API on Android 4.0 or new versions.
-                Intent intent;
                 if (mStarred) {
                     mSessionCalendarServiceStarter.startAddSessionService(mSessionUri,
                                                                           mSessionStart,
@@ -115,14 +113,13 @@ public class SessionDetailPresenter implements LoaderManager.LoaderCallbacks<Cur
                     mSessionCalendarServiceStarter.startRemoveSessionService(mSessionUri, mSessionStart, mSessionEnd, mTitleString);
                 }
                 if (mStarred) {
-                    setupNotification(mSessionDetailActivity, mSessionDetailActivity);
+                    setupNotification(mSessionDetailActivity);
                 }
             }
         }
     }
 
-    private void setupNotification(SessionDetailActivity sessionDetailActivity,
-                                   ContextWrapper contextWrapper) {
+    private void setupNotification(SessionDetailActivity sessionDetailActivity) {
         Intent scheduleIntent;
 
         // Schedule session notification
@@ -135,7 +132,7 @@ public class SessionDetailPresenter implements LoaderManager.LoaderCallbacks<Cur
                                     mSessionStart);
             scheduleIntent.putExtra(SessionAlarmService.EXTRA_SESSION_END,
                                     mSessionEnd);
-            contextWrapper.startService(scheduleIntent);
+            sessionDetailActivity.startService(scheduleIntent);
         } else {
             LOGD(TAG, "Not scheduling notification about session start, too late.");
         }
@@ -156,7 +153,7 @@ public class SessionDetailPresenter implements LoaderManager.LoaderCallbacks<Cur
                                     mTitleString);
             scheduleIntent.putExtra(SessionAlarmService.EXTRA_SESSION_ROOM, mRoomName);
             scheduleIntent.putExtra(SessionAlarmService.EXTRA_SESSION_SPEAKERS, mSpeakers);
-            contextWrapper.startService(scheduleIntent);
+            sessionDetailActivity.startService(scheduleIntent);
         } else {
             LOGD(TAG, "Not scheduling feedback notification, too late.");
         }
@@ -168,6 +165,7 @@ public class SessionDetailPresenter implements LoaderManager.LoaderCallbacks<Cur
      */
     void onSessionQueryComplete(Cursor cursor) {
 
+        mSessionCursor = true;
         mSessionDetailActivity.onSessionQueryComplete();
         if (!cursor.moveToFirst()) {
             // TODO: Remove this in favor of a callbacks interface that the activity
@@ -199,7 +197,8 @@ public class SessionDetailPresenter implements LoaderManager.LoaderCallbacks<Cur
         mRoomName = cursor.getString(SessionsQuery.ROOM_NAME);
         mSpeakers = cursor.getString(SessionsQuery.SPEAKER_NAMES);
 
-        mSessionDetailActivity.renderTitle(mTitleString, mSessionStart, mSessionEnd, mRoomName, mHasLivestream);
+        mSessionDetailActivity
+                .renderTitle(mTitleString, mSessionStart, mSessionEnd, mRoomName, mHasLivestream);
 
         String photo = cursor.getString(SessionsQuery.PHOTO_URL);
         if (!TextUtils.isEmpty(photo)) {
@@ -228,7 +227,8 @@ public class SessionDetailPresenter implements LoaderManager.LoaderCallbacks<Cur
         // from the schedule (it is auto added to schedule on sync)
         mTagsString = cursor.getString(SessionsQuery.TAGS);
         mIsKeynote = mTagsString.contains(Config.Tags.SPECIAL_KEYNOTE);
-        boolean shouldShowAddScheduleButton = mAccountRepository.hasActiveAccount(mSessionDetailActivity) && !mIsKeynote;
+        boolean shouldShowAddScheduleButton = mAccountRepository
+                .hasActiveAccount(mSessionDetailActivity) && !mIsKeynote;
         mSessionDetailActivity.setAddScheduleButtonEnabled(shouldShowAddScheduleButton);
 
         tryRenderTags();
@@ -240,6 +240,7 @@ public class SessionDetailPresenter implements LoaderManager.LoaderCallbacks<Cur
         final String sessionAbstract = cursor.getString(SessionsQuery.ABSTRACT);
         if (!TextUtils.isEmpty(sessionAbstract)) {
             mSessionDetailActivity.renderSessionAbstract(sessionAbstract);
+            mHasSummaryContent = true;
         } else {
             mSessionDetailActivity.hideAbstract();
         }
@@ -249,6 +250,7 @@ public class SessionDetailPresenter implements LoaderManager.LoaderCallbacks<Cur
         final String sessionRequirements = cursor.getString(SessionsQuery.REQUIREMENTS);
         if (!TextUtils.isEmpty(sessionRequirements)) {
             mSessionDetailActivity.renderRequirements(sessionRequirements);
+            mHasSummaryContent = true;
         } else {
             mSessionDetailActivity.hideRequirementsBlock();
         }
@@ -256,14 +258,16 @@ public class SessionDetailPresenter implements LoaderManager.LoaderCallbacks<Cur
         // Build links section
         buildLinksSection(cursor);
 
-        mSessionDetailActivity.updateEmptyView();
+        mSessionDetailActivity.updateEmptyView(mSpeakersCursor, mSessionCursor, mHasSummaryContent);
 
         updateTimeBasedUi(mSessionDetailActivity);
         mSessionDetailActivity.enableScrolling();
 
         mTimeHintUpdaterRunnable = new Runnable() {
+
             @Override
             public void run() {
+
                 updateTimeBasedUi(mSessionDetailActivity);
                 mHandler.postDelayed(mTimeHintUpdaterRunnable, TIME_HINT_UPDATE_INTERVAL);
             }
@@ -391,10 +395,10 @@ public class SessionDetailPresenter implements LoaderManager.LoaderCallbacks<Cur
     public void onLoaderReset(Loader<Cursor> loader) {}
 
     private void onSpeakersQueryComplete(Cursor cursor) {
-
-        mSessionDetailActivity.onSpeakdersQueryCompleted();
+        mSpeakersCursor = true;
+        mSessionDetailActivity.onSpeakersQueryCompleted();
         mSessionDetailActivity.renderSpeakers(cursor);
-        mSessionDetailActivity.updateEmptyView();
+        mSessionDetailActivity.updateEmptyView(mSpeakersCursor, mSessionCursor, mHasSummaryContent);
     }
 
     public boolean onOptionsItemSelected(MenuItem item) {
