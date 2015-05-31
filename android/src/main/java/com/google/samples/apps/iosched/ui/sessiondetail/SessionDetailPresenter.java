@@ -50,13 +50,13 @@ public class SessionDetailPresenter implements LoaderManager.LoaderCallbacks<Cur
     // the app is still executing.
     private static HashSet<String> sDismissedFeedbackCard = new HashSet<>();
     private final SessionDetailActivity mSessionDetailActivity;
-    String mSessionId;
-    Uri mSessionUri;
-    long mSessionStart;
-    long mSessionEnd;
-    String mTitleString;
-    boolean mStarred;
-    boolean mInitStarred;
+    private String mSessionId;
+    private Uri mSessionUri;
+    private long mSessionStart;
+    private long mSessionEnd;
+    private String mTitleString;
+    private boolean mStarred;
+    private boolean mInitStarred;
 
     private TagMetadata mTagMetadata;
 
@@ -86,16 +86,18 @@ public class SessionDetailPresenter implements LoaderManager.LoaderCallbacks<Cur
     private boolean mHasSummaryContent;
 
     public SessionDetailPresenter(SessionDetailActivity sessionDetailActivity,
-                                  ColorUtils colorUtils,
+                                  Uri sessionUri, ColorUtils colorUtils,
                                   AccountRepository accountRepository,
                                   Resources resources,
                                   SessionCalendarServiceStarter sessionCalendarServiceStarter) {
 
+        mSessionUri = sessionUri;
         mSessionDetailActivity = sessionDetailActivity;
         mColorUtils = colorUtils;
         mAccountRepository = accountRepository;
         mResources = resources;
         mSessionCalendarServiceStarter = sessionCalendarServiceStarter;
+        mSessionId = ScheduleContract.Sessions.getSessionId(mSessionUri);
     }
 
     //TODO Move to responder. Question: How will we get the session data needed to launch the service?
@@ -299,7 +301,7 @@ public class SessionDetailPresenter implements LoaderManager.LoaderCallbacks<Cur
 
         final boolean inMySchedule = cursor.getInt(SessionsQuery.IN_MY_SCHEDULE) != 0;
 
-        mSessionDetailActivity.setupShareMenuItemDeferred(mHashTag, mUrl);
+        mSessionDetailActivity.setupShareMenuItemDeferred(mTitleString, mHashTag, mUrl);
 
         // Handle Keynote as a special case, where the user cannot remove it
         // from the schedule (it is auto added to schedule on sync)

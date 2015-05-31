@@ -44,7 +44,6 @@ import com.bumptech.glide.request.target.Target;
 import com.google.android.gms.plus.PlusOneButton;
 import com.google.samples.apps.iosched.R;
 import com.google.samples.apps.iosched.model.TagMetadata;
-import com.google.samples.apps.iosched.provider.ScheduleContract;
 import com.google.samples.apps.iosched.repositories.AccountRepository;
 import com.google.samples.apps.iosched.service.SessionCalendarServiceStarter;
 import com.google.samples.apps.iosched.ui.BaseActivity;
@@ -152,8 +151,8 @@ public class SessionDetailActivity extends BaseActivity implements
             }
         });
 
+        Uri sessionUri = getIntent().getData();
         if (savedInstanceState == null) {
-            Uri sessionUri = getIntent().getData();
             BeamUtils.setBeamSessionUri(this, sessionUri);
         }
 
@@ -164,18 +163,14 @@ public class SessionDetailActivity extends BaseActivity implements
             mNoPlaceholderImageLoader = new ImageLoader(this);
         }
 
-        mSessionDetailPresenter = new SessionDetailPresenter(this,
+        mSessionDetailPresenter = new SessionDetailPresenter(this, sessionUri,
                                                              new ColorUtils(), new AccountRepository(),
                                                              getResources(),
                                                              new SessionCalendarServiceStarter(this));
-        mSessionDetailPresenter.mSessionUri = getIntent().getData();
 
-        if (mSessionDetailPresenter.mSessionUri == null) {
+        if (sessionUri == null) {
             return;
         }
-
-        mSessionDetailPresenter.mSessionId = ScheduleContract.Sessions
-                .getSessionId(mSessionDetailPresenter.mSessionUri);
 
         mFABElevation = getResources().getDimensionPixelSize(R.dimen.fab_elevation);
         mMaxHeaderElevation = getResources().getDimensionPixelSize(
@@ -409,9 +404,7 @@ public class SessionDetailActivity extends BaseActivity implements
 
     private void showStarred(boolean starred, boolean allowAnimate) {
 
-        mSessionDetailPresenter.mStarred = starred;
-
-        mAddScheduleButton.setChecked(mSessionDetailPresenter.mStarred, allowAnimate);
+        mAddScheduleButton.setChecked(starred, allowAnimate);
 
         ImageView iconView = (ImageView) mAddScheduleButton.findViewById(R.id.add_schedule_icon);
         getLUtils().setOrAnimatePlusCheckIcon(iconView, starred, allowAnimate);
@@ -420,7 +413,7 @@ public class SessionDetailActivity extends BaseActivity implements
                                                                    : R.string.add_to_schedule_desc));
     }
 
-    void setupShareMenuItemDeferred(final String hashTag, final String url) {
+    void setupShareMenuItemDeferred(final String titleString, final String hashTag, final String url) {
         mDeferredUiOperations.add(new Runnable() {
 
             @Override
@@ -429,7 +422,7 @@ public class SessionDetailActivity extends BaseActivity implements
                 new SessionsHelper(SessionDetailActivity.this)
                         .tryConfigureShareMenuItem(mShareMenuItem,
                                                    R.string.share_template,
-                                                   mSessionDetailPresenter.mTitleString, hashTag,
+                                                   titleString, hashTag,
                                                    url);
             }
         });
