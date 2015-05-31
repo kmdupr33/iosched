@@ -485,16 +485,9 @@ public class SessionDetailActivity extends BaseActivity implements
 
     public void renderTitle(String titleString, long start, long end,
                             String roomName, boolean liveStreamUrl) {
-        //TODO Break this out into its own presenter and viewholder for reuse in SessionsFragment (and because it follows the general pattern for creating unit testable, dynamically constructed views)
-        String subtitle = UIUtils.formatSessionSubtitle(
-                start, end, roomName, new StringBuilder(),
-                this);
-        if (mHasLivestream) {
-            subtitle += " " + UIUtils.getLiveBadgeText(this, start,
-                                                       end);
-        }
         mTitle.setText(titleString);
-        mSubtitle.setText(subtitle);
+        SessionSubtitlePresenter sessionSubtitlePresenter = new SessionSubtitlePresenter(mSubtitle);
+        sessionSubtitlePresenter.presentSubtitle(start, end, roomName, liveStreamUrl);
     }
 
     public void renderSessionAbstract(String sessionAbstract) {
