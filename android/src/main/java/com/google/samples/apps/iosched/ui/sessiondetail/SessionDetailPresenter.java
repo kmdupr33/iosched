@@ -38,19 +38,17 @@ import java.util.List;
 
 import static com.google.samples.apps.iosched.util.LogUtils.LOGD;
 
-//TODO Consider breaking this class out into seperate binder classes. It has way to many dependencies and does too much.
+//TODO Consider breaking this class up. It has way to many dependencies and does too much.
 public class SessionDetailPresenter implements LoaderManager.LoaderCallbacks<Cursor>,MessageCardView.OnMessageCardButtonClicked {
 
+    private static final int TIME_HINT_UPDATE_INTERVAL = 10000; // 10 sec
+    private static final String TAG = SessionDetailPresenter.class.getSimpleName();
+    private static final int TAG_METADATA_TOKEN = 0x5;
     // this set stores the session IDs for which the user has dismissed the
     // "give feedback" card. This information is kept for the duration of the app's execution
     // so that if they say "No, thanks", we don't show the card again for that session while
     // the app is still executing.
     private static HashSet<String> sDismissedFeedbackCard = new HashSet<>();
-
-    private static final int TIME_HINT_UPDATE_INTERVAL = 10000; // 10 sec
-    private static final String TAG = SessionDetailPresenter.class.getSimpleName();
-    private static final int TAG_METADATA_TOKEN = 0x5;
-
     private final SessionDetailActivity mSessionDetailActivity;
     String mSessionId;
     Uri mSessionUri;
@@ -81,6 +79,7 @@ public class SessionDetailPresenter implements LoaderManager.LoaderCallbacks<Cur
     private ColorUtils mColorUtils;
     private AccountRepository mAccountRepository;
     private Resources mResources;
+    //TODO This is a bad name for this dependency. It should be described in this object's vocabulary, a vocabulary that's devoid of implentation-laden terms like Service ("Service" as in android service)
     private SessionCalendarServiceStarter mSessionCalendarServiceStarter;
     private boolean mSpeakersCursor;
     private boolean mSessionCursor;
@@ -99,6 +98,19 @@ public class SessionDetailPresenter implements LoaderManager.LoaderCallbacks<Cur
         mSessionCalendarServiceStarter = sessionCalendarServiceStarter;
     }
 
+    //TODO Move to responder. Question: How will we get the session data needed to launch the service?
+    /*
+        Technically, it seems like there should be an object that gets the data, an object that presents the data,
+            and an object that responds to user's input on the data. The latter two objects need to be notified whenever
+            there's new data available. How can we achieve this?
+
+            RxJava seems like a natural way to do this. There is, however, a problem: how do we handle
+            cleaning up subscribers when the activity is recreated? Also, how do we handle new data coming in?
+            We can't just call onComplete() after a load because that'll unsubscribe our subscribers from
+            receiving further updates. If we don't call onComplete(), how will the subscribers get cleaned up
+            when the activity is destroyed? Answer: Don't call onComplete(). Unsubscribe by forwarding an onStop()
+            event to the subscribers.
+     */
     public void onStop() {
 
         if (mInitStarred != mStarred) {
@@ -119,43 +131,109 @@ public class SessionDetailPresenter implements LoaderManager.LoaderCallbacks<Cur
         }
     }
 
-    private void setupNotification(SessionDetailActivity sessionDetailActivity) {
-        Intent scheduleIntent;
+    public boolean onOptionsItemSelected(MenuItem item) {
 
-        // Schedule session notification
-        if (UIUtils.getCurrentTime(sessionDetailActivity) < mSessionStart) {
-            LOGD(TAG, "Scheduling notification about session start.");
-            scheduleIntent = new Intent(
-                    SessionAlarmService.ACTION_SCHEDULE_STARRED_BLOCK,
-                    null, sessionDetailActivity, SessionAlarmService.class);
-            scheduleIntent.putExtra(SessionAlarmService.EXTRA_SESSION_START,
-                                    mSessionStart);
-            scheduleIntent.putExtra(SessionAlarmService.EXTRA_SESSION_END,
-                                    mSessionEnd);
-            sessionDetailActivity.startService(scheduleIntent);
-        } else {
-            LOGD(TAG, "Not scheduling notification about session start, too late.");
+        SessionsHelper helper = new SessionsHelper(mSessionDetailActivity);
+        switch (item.getItemId()) {
+            case R.id.menu_map_room:
+                /* [ANALYTICS:EVENT]
+                 * TRIGGER:   Click on the Map action on the Session Details page.
+                 * CATEGORY:  'Session'
+                 * ACTION:    'Map'
+                 * LABEL:     session title/subtitle
+                 * [/ANALYTICS]
+                 */
+                AnalyticsManager
+                        .sendEvent("Session", "Map", mTitleString, 0L);
+                helper.startMapActivity(mRoomId);
+                return true;
+
+            case R.id.menu_share:
+                // On ICS+ devices, we normally won't reach this as ShareActionProvider will handle
+                // sharing.
+                helper.shareSession(mSessionDetailActivity, R.string.share_template,
+                                    mTitleString,
+                        mHashTag, mUrl);
+                return true;
+
+            case R.id.menu_social_stream:
+                if (!TextUtils.isEmpty(mHashTag)) {
+                    /* [ANALYTICS:EVENT]
+                     * TRIGGER:   Click on the Social Stream action on the Session Details page.
+                     * CATEGORY:  'Session'
+                     * ACTION:    'Stream'
+                     * LABEL:     session title/subtitle
+                     * [/ANALYTICS]
+                     */
+                    AnalyticsManager.sendEvent("Session", "Stream",
+                                               mTitleString, 0L);
+                    UIUtils.showHashtagStream(mSessionDetailActivity, mHashTag);
+                }
+                return true;
         }
+        return false;
+    }
 
-        // Schedule feedback notification
-        if (UIUtils.getCurrentTime(sessionDetailActivity) < mSessionEnd) {
-            LOGD(TAG, "Scheduling notification about session feedback.");
-            scheduleIntent = new Intent(
-                    SessionAlarmService.ACTION_SCHEDULE_FEEDBACK_NOTIFICATION,
-                    null, sessionDetailActivity, SessionAlarmService.class);
-            scheduleIntent.putExtra(SessionAlarmService.EXTRA_SESSION_ID,
-                                    mSessionId);
-            scheduleIntent.putExtra(SessionAlarmService.EXTRA_SESSION_START,
-                                    mSessionStart);
-            scheduleIntent.putExtra(SessionAlarmService.EXTRA_SESSION_END,
-                                    mSessionEnd);
-            scheduleIntent.putExtra(SessionAlarmService.EXTRA_SESSION_TITLE,
-                                    mTitleString);
-            scheduleIntent.putExtra(SessionAlarmService.EXTRA_SESSION_ROOM, mRoomName);
-            scheduleIntent.putExtra(SessionAlarmService.EXTRA_SESSION_SPEAKERS, mSpeakers);
-            sessionDetailActivity.startService(scheduleIntent);
+    //TODO Move to responder
+    public void onSessionStarred() {
+        mStarred = !mStarred;
+    }
+
+    @Override
+    public Loader<Cursor> onCreateLoader(int id, Bundle data) {
+        CursorLoader loader = null;
+        if (id == SessionsQuery._TOKEN){
+            loader = new CursorLoader(
+                    mSessionDetailActivity, mSessionUri, SessionsQuery.PROJECTION, null,
+                    null, null);
+        } else if (id == SpeakersQuery._TOKEN  && mSessionUri != null){
+            Uri speakersUri = ScheduleContract.Sessions.buildSpeakersDirUri(
+                    mSessionId);
+            loader = new CursorLoader(
+                    mSessionDetailActivity, speakersUri, SpeakersQuery.PROJECTION, null,
+                    null, ScheduleContract.Speakers.DEFAULT_SORT);
+        } else if (id == FeedbackQuery._TOKEN) {
+            Uri feedbackUri = ScheduleContract.Feedback.buildFeedbackUri(
+                    mSessionId);
+            loader = new CursorLoader(
+                    mSessionDetailActivity, feedbackUri, FeedbackQuery.PROJECTION, null,
+                    null, null);
+        } else if (id == TAG_METADATA_TOKEN) {
+            loader = TagMetadata.createCursorLoader(mSessionDetailActivity);
+        }
+        return loader;
+    }
+
+    @Override
+    public void onLoadFinished(Loader<Cursor> loader, Cursor cursor) {
+        if (loader.getId() == SessionsQuery._TOKEN) {
+            onSessionQueryComplete(cursor);
+        } else if (loader.getId() == SpeakersQuery._TOKEN) {
+            onSpeakersQueryComplete(cursor);
+        } else if (loader.getId() == FeedbackQuery._TOKEN) {
+            onFeedbackQueryComplete(cursor);
+        } else if (loader.getId() == TAG_METADATA_TOKEN) {
+            mTagMetadata = new TagMetadata(cursor);
+            cursor.close();
+            tryRenderTags();
         } else {
-            LOGD(TAG, "Not scheduling feedback notification, too late.");
+            cursor.close();
+        }
+    }
+
+    @Override
+    public void onLoaderReset(Loader<Cursor> loader) {}
+
+    //TODO Move to responder
+    @Override
+    public void onMessageCardButtonClicked(MessageCardView messageCardView, String tag) {
+        switch (messageCardView.getId()) {
+            case R.id.give_feedback_card:
+                onFeedbackCardClicked(messageCardView, tag);
+                break;
+            case R.id.live_now_card:
+                onLiveNowCardClicked(messageCardView, tag);
+                break;
         }
     }
 
@@ -263,6 +341,7 @@ public class SessionDetailPresenter implements LoaderManager.LoaderCallbacks<Cur
         updateTimeBasedUi(mSessionDetailActivity);
         mSessionDetailActivity.enableScrolling();
 
+        //TODO Technical detail. Should be moved to adapter (i.e., SessionDetailActivity)
         mTimeHintUpdaterRunnable = new Runnable() {
 
             @Override
@@ -273,6 +352,81 @@ public class SessionDetailPresenter implements LoaderManager.LoaderCallbacks<Cur
             }
         };
         mHandler.postDelayed(mTimeHintUpdaterRunnable, TIME_HINT_UPDATE_INTERVAL);
+    }
+
+    void onFeedbackQueryComplete(Cursor cursor) {
+        // Is there existing feedback for this session?
+        mAlreadyGaveFeedback = cursor.getCount() > 0;
+
+        if (mAlreadyGaveFeedback) {
+            mSessionDetailActivity.hideFeedbackView();
+        }
+        LOGD(TAG,
+             "User " + (mAlreadyGaveFeedback ? "already gave" : "has not given") + " feedback for session.");
+        cursor.close();
+    }
+
+    //TODO Consider adding layer between loadermanager and presenter so that binders and/or presenters don't have to deal with cursors and to facilitate mocking for tests
+    void startLoad(LoaderManager manager) {
+
+        manager.initLoader(SessionsQuery._TOKEN, null, this);
+        manager.initLoader(SpeakersQuery._TOKEN, null, this);
+        manager.initLoader(TAG_METADATA_TOKEN, null, this);
+    }
+
+    void onResume() {
+
+        updatePlusOneButton();
+        if (mTimeHintUpdaterRunnable != null) {
+            mHandler.postDelayed(
+                    mTimeHintUpdaterRunnable, TIME_HINT_UPDATE_INTERVAL);
+        }
+
+        // Refresh whether or not feedback has been submitted
+        mSessionDetailActivity.getLoaderManager().restartLoader(FeedbackQuery._TOKEN, null,
+                                                                this);
+    }
+
+    private void setupNotification(SessionDetailActivity sessionDetailActivity) {
+        Intent scheduleIntent;
+
+        // Schedule session notification
+        if (System.currentTimeMillis() < mSessionStart) {
+            LOGD(TAG, "Scheduling notification about session start.");
+            //TODO Technical detail. Should be moved to adapter
+            scheduleIntent = new Intent(
+                    SessionAlarmService.ACTION_SCHEDULE_STARRED_BLOCK,
+                    null, sessionDetailActivity, SessionAlarmService.class);
+            scheduleIntent.putExtra(SessionAlarmService.EXTRA_SESSION_START,
+                                    mSessionStart);
+            scheduleIntent.putExtra(SessionAlarmService.EXTRA_SESSION_END,
+                                    mSessionEnd);
+            sessionDetailActivity.startService(scheduleIntent);
+        } else {
+            LOGD(TAG, "Not scheduling notification about session start, too late.");
+        }
+
+        // Schedule feedback notification
+        if (UIUtils.getCurrentTime(sessionDetailActivity) < mSessionEnd) {
+            LOGD(TAG, "Scheduling notification about session feedback.");
+            //TODO Technical detail. Should be moved to adapter
+            scheduleIntent = new Intent(
+                    SessionAlarmService.ACTION_SCHEDULE_FEEDBACK_NOTIFICATION,
+                    null, sessionDetailActivity, SessionAlarmService.class);
+            scheduleIntent.putExtra(SessionAlarmService.EXTRA_SESSION_ID,
+                                    mSessionId);
+            scheduleIntent.putExtra(SessionAlarmService.EXTRA_SESSION_START,
+                                    mSessionStart);
+            scheduleIntent.putExtra(SessionAlarmService.EXTRA_SESSION_END,
+                                    mSessionEnd);
+            scheduleIntent.putExtra(SessionAlarmService.EXTRA_SESSION_TITLE,
+                                    mTitleString);
+            scheduleIntent.putExtra(SessionAlarmService.EXTRA_SESSION_ROOM, mRoomName);
+            scheduleIntent.putExtra(SessionAlarmService.EXTRA_SESSION_SPEAKERS, mSpeakers);
+            sessionDetailActivity.startService(scheduleIntent);
+        } else {
+            LOGD(TAG, "Not scheduling feedback notification, too late.");
+        }
     }
 
     private void buildLinksSection(Cursor cursor) {
@@ -317,131 +471,11 @@ public class SessionDetailPresenter implements LoaderManager.LoaderCallbacks<Cur
         mSessionDetailActivity.renderLinks(links, mTitleString);
     }
 
-    void onFeedbackQueryComplete(Cursor cursor) {
-        // Is there existing feedback for this session?
-        mAlreadyGaveFeedback = cursor.getCount() > 0;
-
-        if (mAlreadyGaveFeedback) {
-            mSessionDetailActivity.hideFeedbackView();
-        }
-        LOGD(TAG,
-             "User " + (mAlreadyGaveFeedback ? "already gave" : "has not given") + " feedback for session.");
-        cursor.close();
-    }
-
-    //TODO Consider adding layer between loadermanager and presenter so that binders and/or presenters don't have to deal with cursors and to facilitate mocking for tests
-    void startLoad(LoaderManager manager) {
-
-        manager.initLoader(SessionsQuery._TOKEN, null, this);
-        manager.initLoader(SpeakersQuery._TOKEN, null, this);
-        manager.initLoader(TAG_METADATA_TOKEN, null, this);
-    }
-
-    void onResume() {
-
-        updatePlusOneButton();
-        if (mTimeHintUpdaterRunnable != null) {
-            mHandler.postDelayed(
-                    mTimeHintUpdaterRunnable, TIME_HINT_UPDATE_INTERVAL);
-        }
-
-        // Refresh whether or not feedback has been submitted
-        mSessionDetailActivity.getLoaderManager().restartLoader(FeedbackQuery._TOKEN, null,
-                                                                this);
-    }
-
-    @Override
-    public Loader<Cursor> onCreateLoader(int id, Bundle data) {
-        CursorLoader loader = null;
-        if (id == SessionsQuery._TOKEN){
-            loader = new CursorLoader(
-                    mSessionDetailActivity, mSessionUri, SessionsQuery.PROJECTION, null,
-                    null, null);
-        } else if (id == SpeakersQuery._TOKEN  && mSessionUri != null){
-            Uri speakersUri = ScheduleContract.Sessions.buildSpeakersDirUri(
-                    mSessionId);
-            loader = new CursorLoader(
-                    mSessionDetailActivity, speakersUri, SpeakersQuery.PROJECTION, null,
-                    null, ScheduleContract.Speakers.DEFAULT_SORT);
-        } else if (id == FeedbackQuery._TOKEN) {
-            Uri feedbackUri = ScheduleContract.Feedback.buildFeedbackUri(
-                    mSessionId);
-            loader = new CursorLoader(
-                    mSessionDetailActivity, feedbackUri, FeedbackQuery.PROJECTION, null,
-                    null, null);
-        } else if (id == TAG_METADATA_TOKEN) {
-            loader = TagMetadata.createCursorLoader(mSessionDetailActivity);
-        }
-        return loader;
-    }
-
-    @Override
-    public void onLoadFinished(Loader<Cursor> loader, Cursor cursor) {
-        if (loader.getId() == SessionsQuery._TOKEN) {
-            onSessionQueryComplete(cursor);
-        } else if (loader.getId() == SpeakersQuery._TOKEN) {
-            onSpeakersQueryComplete(cursor);
-        } else if (loader.getId() == FeedbackQuery._TOKEN) {
-            onFeedbackQueryComplete(cursor);
-        } else if (loader.getId() == TAG_METADATA_TOKEN) {
-            mTagMetadata = new TagMetadata(cursor);
-            cursor.close();
-            tryRenderTags();
-        } else {
-            cursor.close();
-        }
-    }
-
-    public void onLoaderReset(Loader<Cursor> loader) {}
-
     private void onSpeakersQueryComplete(Cursor cursor) {
         mSpeakersCursor = true;
         mSessionDetailActivity.onSpeakersQueryCompleted();
         mSessionDetailActivity.renderSpeakers(cursor);
         mSessionDetailActivity.updateEmptyView(mSpeakersCursor, mSessionCursor, mHasSummaryContent);
-    }
-
-    public boolean onOptionsItemSelected(MenuItem item) {
-
-        SessionsHelper helper = new SessionsHelper(mSessionDetailActivity);
-        switch (item.getItemId()) {
-            case R.id.menu_map_room:
-                /* [ANALYTICS:EVENT]
-                 * TRIGGER:   Click on the Map action on the Session Details page.
-                 * CATEGORY:  'Session'
-                 * ACTION:    'Map'
-                 * LABEL:     session title/subtitle
-                 * [/ANALYTICS]
-                 */
-                AnalyticsManager
-                        .sendEvent("Session", "Map", mTitleString, 0L);
-                helper.startMapActivity(mRoomId);
-                return true;
-
-            case R.id.menu_share:
-                // On ICS+ devices, we normally won't reach this as ShareActionProvider will handle
-                // sharing.
-                helper.shareSession(mSessionDetailActivity, R.string.share_template,
-                                    mTitleString,
-                        mHashTag, mUrl);
-                return true;
-
-            case R.id.menu_social_stream:
-                if (!TextUtils.isEmpty(mHashTag)) {
-                    /* [ANALYTICS:EVENT]
-                     * TRIGGER:   Click on the Social Stream action on the Session Details page.
-                     * CATEGORY:  'Session'
-                     * ACTION:    'Stream'
-                     * LABEL:     session title/subtitle
-                     * [/ANALYTICS]
-                     */
-                    AnalyticsManager.sendEvent("Session", "Stream",
-                                               mTitleString, 0L);
-                    UIUtils.showHashtagStream(mSessionDetailActivity, mHashTag);
-                }
-                return true;
-        }
-        return false;
     }
 
     private void tryRenderTags() {
@@ -536,19 +570,7 @@ public class SessionDetailPresenter implements LoaderManager.LoaderCallbacks<Cur
         }
     }
 
-
-    @Override
-    public void onMessageCardButtonClicked(MessageCardView messageCardView, String tag) {
-        switch (messageCardView.getId()) {
-            case R.id.give_feedback_card:
-                onFeedbackCardClicked(messageCardView, tag);
-                break;
-            case R.id.live_now_card:
-                onLiveNowCardClicked(messageCardView, tag);
-                break;
-        }
-    }
-
+    //TODO Move to responder
     private void onLiveNowCardClicked(MessageCardView messageCardView, String tag) {
 
         if ("GIVE_FEEDBACK".equals(tag)) {
@@ -569,6 +591,7 @@ public class SessionDetailPresenter implements LoaderManager.LoaderCallbacks<Cur
         }
     }
 
+    //TODO Move to responder
     private void onFeedbackCardClicked(MessageCardView messageCardView, String tag) {
 
         if ("WATCH_NOW".equals(tag)) {
@@ -592,13 +615,10 @@ public class SessionDetailPresenter implements LoaderManager.LoaderCallbacks<Cur
                 SessionLivestreamActivity.class);
     }
 
+    //TODO Apparently, this method is used by Responder and Presenter. Consider how to avoid duplicating defintion.
     private Intent getFeedbackIntent() {
         return new Intent(Intent.ACTION_VIEW, mSessionUri, mSessionDetailActivity,
                 SessionFeedbackActivity.class);
-    }
-
-    public void onSessionStarred() {
-        mStarred = !mStarred;
     }
 
     /**
