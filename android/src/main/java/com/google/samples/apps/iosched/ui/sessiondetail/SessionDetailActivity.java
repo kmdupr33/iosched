@@ -82,7 +82,6 @@ public class SessionDetailActivity extends BaseActivity implements
 
     private Handler mHandler = new Handler();
 
-    private boolean mHasLivestream = false;
     private MenuItem mSocialStreamMenuItem;
     private MenuItem mShareMenuItem;
 
