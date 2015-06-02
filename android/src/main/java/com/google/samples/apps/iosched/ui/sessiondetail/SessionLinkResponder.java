@@ -5,38 +5,30 @@ import android.content.Intent;
 import android.net.Uri;
 import android.util.Pair;
 import android.view.View;
-import android.widget.TextView;
 
 import com.google.samples.apps.iosched.util.AnalyticsManager;
 
 /**
  * Created by MattDupree on 5/23/15.
  */
-public class SessionLinkPresenter implements View.OnClickListener {
+public class SessionLinkResponder implements View.OnClickListener {
 
-    private TextView mLinkView;
     private SessionDetailActivity mSessionDetailActivity;
     private Pair<Integer, Object> mLink;
     private String mTitleString;
 
-    public SessionLinkPresenter(TextView linkView,
-                                SessionDetailActivity sessionDetailActivity) {
-
-        mLinkView = linkView;
+    public SessionLinkResponder(SessionDetailActivity sessionDetailActivity) {
         mSessionDetailActivity = sessionDetailActivity;
     }
 
-    public void presentLink(Pair<Integer, Object> link, String titleString) {
-
+    //TODO Something feels off about these respond- methods. Should we be passing in the view here and setting ourselves as a click listener?
+    public void respondToLinkPress(Pair<Integer, Object> link, String titleString) {
         mLink = link;
         mTitleString = titleString;
-        mLinkView.setText(mSessionDetailActivity.getString(link.first));
-        mSessionDetailActivity.addLinkViewToLinksSection(mLinkView);
     }
 
     @Override
     public void onClick(View v) {
-
         fireLinkEvent(mLink.first);
         Intent intent = null;
         if (mLink.second instanceof Intent) {
@@ -52,12 +44,12 @@ public class SessionLinkPresenter implements View.OnClickListener {
     }
 
     /*
- * Event structure:
- * Category -> "Session Details"
- * Action -> Link Text
- * Label -> Session's Title
- * Value -> 0.
- */
+     * Event structure:
+     * Category -> "Session Details"
+     * Action -> Link Text
+     * Label -> Session's Title
+     * Value -> 0.
+     */
     void fireLinkEvent(int actionId) {
     /* [ANALYTICS:EVENT]
      * TRIGGER:   Click on a link on the Session Details page.

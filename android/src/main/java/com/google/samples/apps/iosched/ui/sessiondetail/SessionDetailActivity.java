@@ -16,12 +16,11 @@
 
 package com.google.samples.apps.iosched.ui.sessiondetail;
 
-import android.app.LoaderManager;
+import android.content.CursorLoader;
 import android.content.Intent;
 import android.content.res.Resources;
 import android.database.Cursor;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.v4.view.ViewCompat;
@@ -44,14 +43,17 @@ import com.bumptech.glide.request.target.Target;
 import com.google.android.gms.plus.PlusOneButton;
 import com.google.samples.apps.iosched.R;
 import com.google.samples.apps.iosched.model.TagMetadata;
+import com.google.samples.apps.iosched.provider.ScheduleContract;
 import com.google.samples.apps.iosched.repositories.AccountRepository;
 import com.google.samples.apps.iosched.service.SessionCalendarServiceStarter;
 import com.google.samples.apps.iosched.ui.BaseActivity;
 import com.google.samples.apps.iosched.ui.MyScheduleActivity;
+import com.google.samples.apps.iosched.ui.sessiondetail.SessionDetailDataLoader.FeedbackQuery;
+import com.google.samples.apps.iosched.ui.sessiondetail.SessionDetailDataLoader.SessionsQuery;
+import com.google.samples.apps.iosched.ui.sessiondetail.SessionDetailDataLoader.SpeakersQuery;
 import com.google.samples.apps.iosched.ui.widget.CheckableFrameLayout;
 import com.google.samples.apps.iosched.ui.widget.MessageCardView;
 import com.google.samples.apps.iosched.ui.widget.ObservableScrollView;
-import com.google.samples.apps.iosched.util.AnalyticsManager;
 import com.google.samples.apps.iosched.util.BeamUtils;
 import com.google.samples.apps.iosched.util.ColorUtils;
 import com.google.samples.apps.iosched.util.ImageLoader;
@@ -60,6 +62,11 @@ import com.google.samples.apps.iosched.util.UIUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import rx.Observable;
+import rx.Subscriber;
+import rx.functions.Func1;
+import rx.observables.ConnectableObservable;
 
 /**
  * An activity that shows detail information for a session, including session title, abstract,
@@ -120,6 +127,12 @@ public class SessionDetailActivity extends BaseActivity implements
     private ViewGroup mSpeakersGroup;
     private TextView mTimeHintView;
     private ViewGroup mLinkContainer;
+    private SessionDetailResponder mSessionDetailResponder;
+    private Subscriber<? super Boolean> mAddedToScheduleSubscriber;
+
+    public void renderToggleSessionAddButtonAccessibility(String accessibilityString) {
+        mAddScheduleButton.announceForAccessibility(accessibilityString);
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -163,9 +176,59 @@ public class SessionDetailActivity extends BaseActivity implements
             mNoPlaceholderImageLoader = new ImageLoader(this);
         }
 
-        mSessionDetailPresenter = new SessionDetailPresenter(this, sessionUri,
-                                                             new ColorUtils(), new AccountRepository(),
-                                                             getResources(),
+        CursorLoader cursorLoader = new CursorLoader(this, sessionUri, SessionsQuery.PROJECTION, null, null, null);
+        InitLoaderOnSubscribe<Cursor> sessionLoaderOnSubscribe = new InitLoaderOnSubscribe<>(SessionsQuery._TOKEN,
+                                                                                   getLoaderManager(),
+                                                                                   cursorLoader);
+        ConnectableObservable<Cursor> sessionDataObservable = Observable.create(sessionLoaderOnSubscribe).publish();
+
+        Observable<Boolean> sessionAddedObservable = sessionDataObservable.map(new Func1<Cursor, Boolean>() {
+                    @Override
+                    public Boolean call(Cursor cursor) {
+                        return cursor.getInt(SessionsQuery.IN_MY_SCHEDULE) != 0;
+                    }
+                });
+
+        mAddScheduleButton = (CheckableFrameLayout) findViewById(R.id.add_schedule_button);
+        Observable<Boolean> clickedSessionAddedObservable = Observable
+                .create(new Observable.OnSubscribe<Boolean>() {
+                    @Override
+                    public void call(final Subscriber<? super Boolean> subscriber) {
+                        mAddScheduleButton.setOnClickListener(new View.OnClickListener() {
+                            @Override
+                            public void onClick(View view) {
+                                subscriber.onNext(mAddScheduleButton.isChecked());
+                            }
+                        });
+                    }
+                });
+        Observable.merge(sessionAddedObservable, clickedSessionAddedObservable).subscribe(mAddedToScheduleSubscriber = new AddedToSchedulSubscriber(this));
+
+        String sessionId = ScheduleContract.Sessions.getSessionId(sessionUri);
+        Uri speakersDirUri = ScheduleContract.Sessions.buildSpeakersDirUri(sessionId);
+        cursorLoader = new CursorLoader(this, speakersDirUri, SpeakersQuery.PROJECTION, null, null,
+                                        ScheduleContract.Speakers.DEFAULT_SORT);
+        InitLoaderOnSubscribe<Cursor> speakersLoaderOnSubscribe = new InitLoaderOnSubscribe<>(SpeakersQuery._TOKEN, getLoaderManager(), cursorLoader);
+        ConnectableObservable<Cursor> speakerDataObservable = Observable.create(
+                speakersLoaderOnSubscribe).publish();
+
+        Uri feedbackUri = ScheduleContract.Feedback.buildFeedbackUri(sessionId);
+        cursorLoader = new CursorLoader(this, feedbackUri, FeedbackQuery.PROJECTION, null, null, null);
+        InitLoaderOnSubscribe<Cursor> feedbackLoaderOnSubscribe = new InitLoaderOnSubscribe<>(FeedbackQuery._TOKEN, getLoaderManager(), cursorLoader);
+        ConnectableObservable<Cursor> feedbackObservable = Observable.create(feedbackLoaderOnSubscribe)
+                                                          .publish();
+
+        cursorLoader = TagMetadata.createCursorLoader(this);
+        InitLoaderOnSubscribe<Cursor> metaDataLoaderOnSubscribe = new InitLoaderOnSubscribe<>(
+                SessionDetailPresenter.TAG_METADATA_TOKEN, getLoaderManager(), cursorLoader);
+        ConnectableObservable<Cursor> tagMetaDataObservable = Observable.create(metaDataLoaderOnSubscribe)
+                                                          .publish();
+
+
+        mSessionDetailPresenter = new SessionDetailPresenter(this, new AccountRepository(), new ColorUtils(), getResources());
+        mSessionDetailPresenter.present(sessionUri, sessionId);
+        mSessionDetailResponder = new SessionDetailResponder(mSessionDetailPresenter,
+                                                             new SessionsHelper(this),
                                                              new SessionCalendarServiceStarter(this));
 
         if (sessionUri == null) {
@@ -203,40 +266,7 @@ public class SessionDetailActivity extends BaseActivity implements
         mTags = (LinearLayout) findViewById(R.id.session_tags);
         mTagsContainer = (ViewGroup) findViewById(R.id.session_tags_container);
 
-        mAddScheduleButton = (CheckableFrameLayout) findViewById(R.id.add_schedule_button);
-        mAddScheduleButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                boolean starred = !mSessionDetailPresenter.mStarred;
-                mSessionDetailPresenter.onSessionStarred();
-                //TODO Move this to presenter
-                SessionsHelper helper = new SessionsHelper(SessionDetailActivity.this);
-                showStarred(starred, true);
-                helper.setSessionStarred(mSessionDetailPresenter.mSessionUri, starred,
-                                         mSessionDetailPresenter.mTitleString);
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
-                    mAddScheduleButton.announceForAccessibility(starred ?
-                            getString(R.string.session_details_a11y_session_added) :
-                            getString(R.string.session_details_a11y_session_removed));
-                }
-
-                /* [ANALYTICS:EVENT]
-                 * TRIGGER:   Add or remove a session from My Schedule.
-                 * CATEGORY:  'Session'
-                 * ACTION:    'Starred' or 'Unstarred'
-                 * LABEL:     Session title/subtitle.
-                 * [/ANALYTICS]
-                 */
-                AnalyticsManager.sendEvent(
-                        "Session", starred ? "Starred" : "Unstarred",
-                        mSessionDetailPresenter.mTitleString, 0L);
-            }
-        });
-
         ViewCompat.setTransitionName(mPhotoView, TRANSITION_NAME_PHOTO);
-
-        LoaderManager manager = getLoaderManager();
-        mSessionDetailPresenter.startLoad(manager);
     }
 
     @Override
@@ -343,13 +373,13 @@ public class SessionDetailActivity extends BaseActivity implements
     @Override
     public void onResume() {
         super.onResume();
-        mSessionDetailPresenter.onResume();
+        mSessionDetailResponder.onResume();
     }
 
     @Override
     public void onStop() {
         super.onStop();
-        mSessionDetailPresenter.onStop();
+        mSessionDetailResponder.onStop();
     }
 
     private void setTextSelectable(TextView tv) {
@@ -369,13 +399,13 @@ public class SessionDetailActivity extends BaseActivity implements
     void showWatchNowCard() {
         final MessageCardView messageCardView = (MessageCardView) findViewById(R.id.live_now_card);
         messageCardView.show();
-        messageCardView.setListener(mSessionDetailPresenter);
+        messageCardView.setListener(mSessionDetailResponder);
     }
 
     void showGiveFeedbackCard() {
         final MessageCardView messageCardView = (MessageCardView) findViewById(R.id.give_feedback_card);
         messageCardView.show();
-        messageCardView.setListener(mSessionDetailPresenter);
+        messageCardView.setListener(mSessionDetailResponder);
     }
 
     void enableSocialStreamMenuItemDeferred() {
@@ -402,7 +432,7 @@ public class SessionDetailActivity extends BaseActivity implements
         tryExecuteDeferredUiOperations();
     }
 
-    private void showStarred(boolean starred, boolean allowAnimate) {
+    void showStarred(boolean starred, boolean allowAnimate) {
 
         mAddScheduleButton.setChecked(starred, allowAnimate);
 
@@ -457,8 +487,7 @@ public class SessionDetailActivity extends BaseActivity implements
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-
-        return mSessionDetailPresenter.onOptionsItemSelected(item);
+        return mSessionDetailResponder.onOptionsItemSelected(item);
     }
 
     public void renderSessionColor(int sessionColor) {
@@ -646,9 +675,11 @@ public class SessionDetailActivity extends BaseActivity implements
                     mSubmitFeedbackView = linkView;
                 }
 
-                SessionLinkPresenter sessionLinkPresenter = new SessionLinkPresenter(linkView, this);
-                sessionLinkPresenter.presentLink(link, titleString);
-                linkView.setOnClickListener(sessionLinkPresenter);
+                SessionLinkResponder sessionLinkResponder = new SessionLinkResponder(this);
+                sessionLinkResponder.respondToLinkPress(link, titleString);
+                linkView.setText(getString(link.first));
+                addLinkViewToLinksSection(linkView);
+                linkView.setOnClickListener(sessionLinkResponder);
             }
 
             findViewById(R.id.session_links_header).setVisibility(View.VISIBLE);
