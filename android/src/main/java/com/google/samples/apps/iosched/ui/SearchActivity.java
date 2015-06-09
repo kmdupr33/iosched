@@ -22,20 +22,32 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.v4.content.IntentCompat;
+import android.support.v7.widget.SearchView;
 import android.support.v7.widget.Toolbar;
 import android.text.TextUtils;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.support.v7.widget.SearchView;
 
 import com.google.samples.apps.iosched.R;
 import com.google.samples.apps.iosched.model.TagMetadata;
 import com.google.samples.apps.iosched.provider.ScheduleContract;
 import com.google.samples.apps.iosched.ui.debug.actions.ShowFeedbackNotificationAction;
 import com.google.samples.apps.iosched.util.AnalyticsManager;
+import com.google.samples.apps.iosched.util.rxadapter.DelegatingOnQueryTextListener;
+import com.google.samples.apps.iosched.util.rxadapter.DelegatingOnQueryTextListener.OnQueryTextListenerAdapter;
 
-import static com.google.samples.apps.iosched.util.LogUtils.*;
+import java.util.concurrent.TimeUnit;
+
+import rx.Observable;
+import rx.Subscriber;
+import rx.functions.Action1;
+import rx.functions.Func1;
+import rx.schedulers.Schedulers;
+
+import static com.google.samples.apps.iosched.util.LogUtils.LOGD;
+import static com.google.samples.apps.iosched.util.LogUtils.LOGW;
+import static com.google.samples.apps.iosched.util.LogUtils.makeLogTag;
 
 public class SearchActivity extends BaseActivity implements SessionsFragment.Callbacks {
     private static final String TAG = makeLogTag("SearchActivity");
@@ -145,24 +157,82 @@ public class SearchActivity extends BaseActivity implements SessionsFragment.Cal
             } else {
                 view.setSearchableInfo(searchManager.getSearchableInfo(getComponentName()));
                 view.setIconified(false);
-                view.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+                final DelegatingOnQueryTextListener delegatingOnQueryTextListener = new DelegatingOnQueryTextListener(null);
+                view.setOnQueryTextListener(delegatingOnQueryTextListener);
+
+                Observable.create(new Observable.OnSubscribe<String>() {
+
                     @Override
-                    public boolean onQueryTextSubmit(String s) {
+                    public void call(final Subscriber<? super String> subscriber) {
+
+                        delegatingOnQueryTextListener
+                                .addOnQueryTextListener(new OnQueryTextListenerAdapter() {
+
+                                    @Override
+                                    public void onQueryTextSubmit(String s) {
+
+                                        subscriber.onNext(s);
+                                    }
+                                });
+                    }
+                }).subscribe(new Action1<String>() {
+
+                    @Override
+                    public void call(String s) {
+
                         view.clearFocus();
                         if ("zzznotif".equals(s)) {
                             (new ShowFeedbackNotificationAction()).run(SearchActivity.this, null);
                         }
-                        return true;
-                    }
-
-                    @Override
-                    public boolean onQueryTextChange(String s) {
-                        if (null != mSessionsFragment) {
-                            mSessionsFragment.requestQueryUpdate(s);
-                        }
-                        return true;
                     }
                 });
+
+                Observable.create(new Observable.OnSubscribe<String>() {
+                    @Override
+                    public void call(final Subscriber<? super String> subscriber) {
+                        delegatingOnQueryTextListener.addOnQueryTextListener(
+                                new OnQueryTextListenerAdapter() {
+
+                                    @Override
+                                    public void onQueryTextChange(String s) {
+                                        subscriber.onNext(s);
+                                    }
+                                });
+                    }
+                })
+                        .filter(new Func1<String, Boolean>() {
+
+                            @Override
+                            public Boolean call(String s) {
+                                return null != mSessionsFragment;
+                            }
+                        })
+                        .debounce(100, TimeUnit.SECONDS)
+                        .map(new Func1<String, Intent>() {
+
+                            @Override
+                            public Intent call(String s) {
+                                return new Intent(Intent.ACTION_SEARCH,
+                                                  ScheduleContract.Sessions.buildSearchUri(s));
+                            }
+                        })
+                        .map(new Func1<Intent, Bundle>() {
+                            @Override
+                            public Bundle call(Intent intent) {
+                                return BaseActivity.intentToFragmentArguments(intent);
+                            }
+                        })
+                        .subscribeOn(Schedulers.newThread())
+                        .observeOn(Schedulers.immediate())
+                        .subscribe(new Action1<Bundle>() {
+
+                            @Override
+                            public void call(Bundle bundle) {
+
+                                mSessionsFragment.reloadFromArguments(bundle);
+                            }
+                        });
+
                 view.setOnCloseListener(new SearchView.OnCloseListener() {
                     @Override
                     public boolean onClose() {
