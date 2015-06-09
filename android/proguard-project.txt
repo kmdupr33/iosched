@@ -130,3 +130,4 @@
 -dontwarn org.mockito.**
 -dontwarn org.robolectric.**
 -dontwarn com.bumptech.glide.GlideTest
+-dontwarn rx.internal.util.unsafe.**

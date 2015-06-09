@@ -51,6 +51,8 @@ android {
         debug {
             debuggable true
             signingConfig signingConfigs.debug
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), file('proguard-project.txt')
         }
         release {
             minifyEnabled true
@@ -92,8 +94,8 @@ dependencies {
         exclude group: "com.google.android.gms"
     }
     /* The two dependencies below are only required while we are using http
-           Drive appdata. When we start using AppData through GMS,
-           they should be removed. */
+               Drive appdata. When we start using AppData through GMS,
+               they should be removed. */
     compile 'com.google.http-client:google-http-client-gson:1.+'
     compile 'com.google.apis:google-api-services-drive:+'
     compile 'io.reactivex:rxjava:1.0.11'
