@@ -41,9 +41,9 @@ import java.util.concurrent.TimeUnit;
 
 import rx.Observable;
 import rx.Subscriber;
+import rx.android.schedulers.AndroidSchedulers;
 import rx.functions.Action1;
 import rx.functions.Func1;
-import rx.schedulers.Schedulers;
 
 import static com.google.samples.apps.iosched.util.LogUtils.LOGD;
 import static com.google.samples.apps.iosched.util.LogUtils.LOGW;
@@ -161,7 +161,6 @@ public class SearchActivity extends BaseActivity implements SessionsFragment.Cal
                 view.setOnQueryTextListener(delegatingOnQueryTextListener);
 
                 Observable.create(new Observable.OnSubscribe<String>() {
-
                     @Override
                     public void call(final Subscriber<? super String> subscriber) {
                         delegatingOnQueryTextListener
@@ -200,7 +199,7 @@ public class SearchActivity extends BaseActivity implements SessionsFragment.Cal
                                 return null != mSessionsFragment;
                             }
                         })
-                        .debounce(100, TimeUnit.SECONDS)
+                        .debounce(100, TimeUnit.MILLISECONDS)
                         .map(new Func1<String, Intent>() {
                             @Override
                             public Intent call(String s) {
@@ -214,9 +213,9 @@ public class SearchActivity extends BaseActivity implements SessionsFragment.Cal
                                 return BaseActivity.intentToFragmentArguments(intent);
                             }
                         })
-                        .subscribeOn(Schedulers.newThread())
-                        .observeOn(Schedulers.immediate())
+                        .observeOn(AndroidSchedulers.mainThread())
                         .subscribe(new Action1<Bundle>() {
+
                             @Override
                             public void call(Bundle bundle) {
                                 mSessionsFragment.reloadFromArguments(bundle);
@@ -224,8 +223,10 @@ public class SearchActivity extends BaseActivity implements SessionsFragment.Cal
                         });
 
                 view.setOnCloseListener(new SearchView.OnCloseListener() {
+
                     @Override
                     public boolean onClose() {
+
                         finish();
                         return false;
                     }
