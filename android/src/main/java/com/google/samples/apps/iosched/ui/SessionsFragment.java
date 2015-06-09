@@ -31,7 +31,6 @@ import android.graphics.PorterDuffColorFilter;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
-import android.os.Message;
 import android.os.Parcelable;
 import android.preference.PreferenceManager;
 import android.provider.BaseColumns;
@@ -93,10 +92,6 @@ public class SessionsFragment extends Fragment implements
     private static final String STATE_SESSION_QUERY_TOKEN = "session_query_token";
     private static final String STATE_ARGUMENTS = "arguments";
 
-    /** The handler message for updating the search query. */
-    private static final int MESSAGE_QUERY_UPDATE = 1;
-    /** The delay before actual requerying in millisecs. */
-    private static final int QUERY_UPDATE_DELAY_MILLIS = 100;
     /** The number of rows ahead to preload images for */
     private static final int ROWS_TO_PRELOAD = 2;
 
@@ -141,18 +136,7 @@ public class SessionsFragment extends Fragment implements
 
     private ThrottledContentObserver mSessionsObserver, mTagsObserver;
 
-    private Handler mHandler = new Handler() {
-
-        @Override
-        public void handleMessage(Message msg) {
-            if (msg.what == MESSAGE_QUERY_UPDATE) {
-                String query = (String) msg.obj;
-                reloadFromArguments(BaseActivity.intentToFragmentArguments(
-                        new Intent(Intent.ACTION_SEARCH, ScheduleContract.Sessions.buildSearchUri(query))));
-            }
-        }
-
-    };
+    private Handler mHandler = new Handler();
 
     private Preloader mPreloader;
 
@@ -326,12 +310,6 @@ public class SessionsFragment extends Fragment implements
         if (mTagMetadata == null) {
             reloadTagMetadata();
         }
-    }
-
-    void requestQueryUpdate(String query) {
-        mHandler.removeMessages(MESSAGE_QUERY_UPDATE);
-        mHandler.sendMessageDelayed(Message.obtain(mHandler, MESSAGE_QUERY_UPDATE, query),
-                QUERY_UPDATE_DELAY_MILLIS);
     }
 
     @Override

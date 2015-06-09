@@ -53,6 +53,7 @@ public class SearchActivity extends BaseActivity implements SessionsFragment.Cal
     private static final String TAG = makeLogTag("SearchActivity");
 
     private final static String SCREEN_LABEL = "Search";
+    private static final int QUERY_UPDATE_DELAY_MILLIS = 100;
 
     SessionsFragment mSessionsFragment = null;
 
@@ -199,7 +200,7 @@ public class SearchActivity extends BaseActivity implements SessionsFragment.Cal
                                 return null != mSessionsFragment;
                             }
                         })
-                        .debounce(100, TimeUnit.MILLISECONDS)
+                        .debounce(QUERY_UPDATE_DELAY_MILLIS, TimeUnit.MILLISECONDS)
                         .map(new Func1<String, Intent>() {
                             @Override
                             public Intent call(String s) {
