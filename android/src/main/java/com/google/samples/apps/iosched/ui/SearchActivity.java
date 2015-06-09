@@ -166,7 +166,6 @@ public class SearchActivity extends BaseActivity implements SessionsFragment.Cal
                     public void call(final Subscriber<? super String> subscriber) {
                         delegatingOnQueryTextListener
                                 .addOnQueryTextListener(new OnQueryTextListenerAdapter() {
-
                                     @Override
                                     public void onQueryTextSubmit(String s) {
                                         subscriber.onNext(s);
@@ -174,7 +173,6 @@ public class SearchActivity extends BaseActivity implements SessionsFragment.Cal
                                 });
                     }
                 }).subscribe(new Action1<String>() {
-
                     @Override
                     public void call(String s) {
                         view.clearFocus();
@@ -189,7 +187,6 @@ public class SearchActivity extends BaseActivity implements SessionsFragment.Cal
                     public void call(final Subscriber<? super String> subscriber) {
                         delegatingOnQueryTextListener.addOnQueryTextListener(
                                 new OnQueryTextListenerAdapter() {
-
                                     @Override
                                     public void onQueryTextChange(String s) {
                                         subscriber.onNext(s);
@@ -198,7 +195,6 @@ public class SearchActivity extends BaseActivity implements SessionsFragment.Cal
                     }
                 })
                         .filter(new Func1<String, Boolean>() {
-
                             @Override
                             public Boolean call(String s) {
                                 return null != mSessionsFragment;
@@ -206,7 +202,6 @@ public class SearchActivity extends BaseActivity implements SessionsFragment.Cal
                         })
                         .debounce(100, TimeUnit.SECONDS)
                         .map(new Func1<String, Intent>() {
-
                             @Override
                             public Intent call(String s) {
                                 return new Intent(Intent.ACTION_SEARCH,
