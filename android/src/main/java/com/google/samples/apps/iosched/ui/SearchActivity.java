@@ -31,11 +31,12 @@ import android.view.View;
 
 import com.google.samples.apps.iosched.R;
 import com.google.samples.apps.iosched.model.TagMetadata;
-import com.google.samples.apps.iosched.provider.ScheduleContract;
+import com.google.samples.apps.iosched.provider.ScheduleContract.Sessions;
 import com.google.samples.apps.iosched.ui.debug.actions.ShowFeedbackNotificationAction;
 import com.google.samples.apps.iosched.util.AnalyticsManager;
 import com.google.samples.apps.iosched.util.rxadapter.DelegatingOnQueryTextListener;
-import com.google.samples.apps.iosched.util.rxadapter.DelegatingOnQueryTextListener.OnQueryTextListenerAdapter;
+import com.google.samples.apps.iosched.util.rxadapter.DelegatingOnQueryTextListener.OnQueryTextChangedListener;
+import com.google.samples.apps.iosched.util.rxadapter.DelegatingOnQueryTextListener.OnQueryTextSubmitListener;
 
 import java.util.concurrent.TimeUnit;
 
@@ -45,6 +46,7 @@ import rx.android.schedulers.AndroidSchedulers;
 import rx.functions.Action1;
 import rx.functions.Func1;
 
+import static android.content.Intent.ACTION_SEARCH;
 import static com.google.samples.apps.iosched.util.LogUtils.LOGD;
 import static com.google.samples.apps.iosched.util.LogUtils.LOGW;
 import static com.google.samples.apps.iosched.util.LogUtils.makeLogTag;
@@ -87,7 +89,7 @@ public class SearchActivity extends BaseActivity implements SessionsFragment.Cal
         if (mSessionsFragment == null) {
             mSessionsFragment = new SessionsFragment();
             Bundle args = intentToFragmentArguments(
-                    new Intent(Intent.ACTION_VIEW, ScheduleContract.Sessions.buildSearchUri(query)));
+                    new Intent(Intent.ACTION_VIEW, Sessions.buildSearchUri(query)));
             mSessionsFragment.setArguments(args);
             fm.beginTransaction().add(R.id.fragment_container, mSessionsFragment).commit();
         }
@@ -111,7 +113,7 @@ public class SearchActivity extends BaseActivity implements SessionsFragment.Cal
         AnalyticsManager.sendEvent(SCREEN_LABEL, "selectsession", sessionId);
         getLUtils().startActivityWithTransition(
                 new Intent(Intent.ACTION_VIEW,
-                        ScheduleContract.Sessions.buildSessionUri(sessionId)),
+                        Sessions.buildSessionUri(sessionId)),
                 clickedView,
                 SessionDetailActivity.TRANSITION_NAME_PHOTO);
     }
@@ -131,7 +133,7 @@ public class SearchActivity extends BaseActivity implements SessionsFragment.Cal
         setIntent(intent);
         String query = intent.getStringExtra(SearchManager.QUERY);
         Bundle args = intentToFragmentArguments(
-                new Intent(Intent.ACTION_VIEW, ScheduleContract.Sessions.buildSearchUri(query)));
+                new Intent(Intent.ACTION_VIEW, Sessions.buildSearchUri(query)));
         LOGD(TAG, "onNewIntent() now reloading sessions fragment with args: " + args);
         mSessionsFragment.reloadFromArguments(args);
         /* [ANALYTICS:EVENT]
@@ -158,21 +160,24 @@ public class SearchActivity extends BaseActivity implements SessionsFragment.Cal
             } else {
                 view.setSearchableInfo(searchManager.getSearchableInfo(getComponentName()));
                 view.setIconified(false);
-                final DelegatingOnQueryTextListener delegatingOnQueryTextListener = new DelegatingOnQueryTextListener(null);
+                final DelegatingOnQueryTextListener delegatingOnQueryTextListener = new DelegatingOnQueryTextListener();
                 view.setOnQueryTextListener(delegatingOnQueryTextListener);
 
                 Observable.create(new Observable.OnSubscribe<String>() {
                     @Override
                     public void call(final Subscriber<? super String> subscriber) {
-                        delegatingOnQueryTextListener
-                                .addOnQueryTextListener(new OnQueryTextListenerAdapter() {
+                        delegatingOnQueryTextListener.setOnQueryTextSubmitListener(
+                                new OnQueryTextSubmitListener() {
+
                                     @Override
                                     public void onQueryTextSubmit(String s) {
+
                                         subscriber.onNext(s);
                                     }
                                 });
                     }
                 }).subscribe(new Action1<String>() {
+
                     @Override
                     public void call(String s) {
                         view.clearFocus();
@@ -185,18 +190,19 @@ public class SearchActivity extends BaseActivity implements SessionsFragment.Cal
                 Observable.create(new Observable.OnSubscribe<String>() {
                     @Override
                     public void call(final Subscriber<? super String> subscriber) {
-                        delegatingOnQueryTextListener.addOnQueryTextListener(
-                                new OnQueryTextListenerAdapter() {
+                        delegatingOnQueryTextListener.setOnQueryTextChangedListener(
+                                new OnQueryTextChangedListener() {
+
                                     @Override
-                                    public void onQueryTextChange(String s) {
-                                        subscriber.onNext(s);
-                                    }
+                                    public void onQueryTextChange(String s) { subscriber.onNext(s); }
                                 });
                     }
                 })
                         .filter(new Func1<String, Boolean>() {
+
                             @Override
                             public Boolean call(String s) {
+
                                 return null != mSessionsFragment;
                             }
                         })
@@ -204,8 +210,7 @@ public class SearchActivity extends BaseActivity implements SessionsFragment.Cal
                         .map(new Func1<String, Intent>() {
                             @Override
                             public Intent call(String s) {
-                                return new Intent(Intent.ACTION_SEARCH,
-                                                  ScheduleContract.Sessions.buildSearchUri(s));
+                                return new Intent(ACTION_SEARCH, Sessions.buildSearchUri(s));
                             }
                         })
                         .map(new Func1<Intent, Bundle>() {

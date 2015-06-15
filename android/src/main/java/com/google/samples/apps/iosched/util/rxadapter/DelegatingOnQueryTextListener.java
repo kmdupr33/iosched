@@ -1,10 +1,6 @@
 package com.google.samples.apps.iosched.util.rxadapter;
 
-import android.support.annotation.Nullable;
 import android.support.v7.widget.SearchView;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  *
@@ -12,43 +8,39 @@ import java.util.List;
  */
 public class DelegatingOnQueryTextListener implements SearchView.OnQueryTextListener {
 
-    private final List<OnQueryTextListenerAdapter> mOnQueryTextListeners;
+    private OnQueryTextChangedListener mOnQueryTextChangedListener;
+    private OnQueryTextSubmitListener mOnQueryTextSubmitListener;
 
-    public DelegatingOnQueryTextListener(
-            @Nullable List<OnQueryTextListenerAdapter> onQueryTextListeners) {
-        if (onQueryTextListeners != null) {
-            mOnQueryTextListeners = onQueryTextListeners;
-        } else {
-            mOnQueryTextListeners = new ArrayList<>();
-        }
+    public void setOnQueryTextSubmitListener(
+            OnQueryTextSubmitListener onQueryTextSubmitListener) {
+        mOnQueryTextSubmitListener = onQueryTextSubmitListener;
     }
 
-    public void addOnQueryTextListener(OnQueryTextListenerAdapter onQueryTextListener) {
-        mOnQueryTextListeners.add(onQueryTextListener);
+    public void setOnQueryTextChangedListener(OnQueryTextChangedListener onQueryTextChangedListener) {
+        mOnQueryTextChangedListener = onQueryTextChangedListener;
     }
 
     @Override
     public boolean onQueryTextSubmit(String s) {
-        for (OnQueryTextListenerAdapter listener : mOnQueryTextListeners) {
-            listener.onQueryTextSubmit(s);
+        if (mOnQueryTextSubmitListener != null) {
+            mOnQueryTextSubmitListener.onQueryTextSubmit(s);
         }
         return true;
     }
 
     @Override
     public boolean onQueryTextChange(String s) {
-        for (OnQueryTextListenerAdapter listener : mOnQueryTextListeners) {
-            listener.onQueryTextChange(s);
+        if (mOnQueryTextChangedListener != null) {
+            mOnQueryTextChangedListener.onQueryTextChange(s);
         }
         return true;
     }
 
-    public static class OnQueryTextListenerAdapter {
+    public interface OnQueryTextChangedListener {
+        void onQueryTextChange(String s);
+    }
 
-        public void onQueryTextSubmit(String s) {
-        }
-
-        public void onQueryTextChange(String s) {
-        }
+    public interface OnQueryTextSubmitListener {
+        void onQueryTextSubmit(String s);
     }
 }
