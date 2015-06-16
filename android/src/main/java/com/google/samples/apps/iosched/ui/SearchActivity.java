@@ -201,10 +201,7 @@ public class SearchActivity extends BaseActivity implements SessionsFragment.Cal
                         .filter(new Func1<String, Boolean>() {
 
                             @Override
-                            public Boolean call(String s) {
-
-                                return null != mSessionsFragment;
-                            }
+                            public Boolean call(String s) { return null != mSessionsFragment; }
                         })
                         .debounce(QUERY_UPDATE_DELAY_MILLIS, TimeUnit.MILLISECONDS)
                         .map(new Func1<String, Intent>() {
