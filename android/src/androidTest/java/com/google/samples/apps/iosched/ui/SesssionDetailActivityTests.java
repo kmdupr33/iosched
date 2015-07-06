@@ -19,6 +19,7 @@ import org.junit.runner.RunWith;
 import static android.support.test.espresso.Espresso.onData;
 import static android.support.test.espresso.Espresso.onView;
 import static android.support.test.espresso.action.ViewActions.click;
+import static android.support.test.espresso.action.ViewActions.pressBack;
 import static android.support.test.espresso.action.ViewActions.scrollTo;
 import static android.support.test.espresso.assertion.ViewAssertions.matches;
 import static android.support.test.espresso.intent.Intents.intended;
@@ -26,12 +27,15 @@ import static android.support.test.espresso.intent.matcher.IntentMatchers.hasAct
 import static android.support.test.espresso.intent.matcher.IntentMatchers.hasComponent;
 import static android.support.test.espresso.intent.matcher.IntentMatchers.hasData;
 import static android.support.test.espresso.intent.matcher.IntentMatchers.hasExtra;
+import static android.support.test.espresso.matcher.ViewMatchers.isChecked;
 import static android.support.test.espresso.matcher.ViewMatchers.isDisplayed;
+import static android.support.test.espresso.matcher.ViewMatchers.isRoot;
 import static android.support.test.espresso.matcher.ViewMatchers.withId;
 import static android.support.test.espresso.matcher.ViewMatchers.withText;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.startsWith;
 
 /**
@@ -51,21 +55,7 @@ public class SesssionDetailActivityTests {
      */
     @Before
     public void setUp() throws Exception {
-        /*
-        The CollectionView used to display Sessions has an adapter whose getItem() method returns an
-        Integer. Unfortunately, because of the way that onData() works, this means that we can
-        only select an item in the list by passing in the index of the item that we'd like to
-        select in the CollectionView. Index 1 corresponds to the session entitled "Going Global with
-        Google Play"
-         */
-        onData(allOf(is(instanceOf(Integer.class)), is(1)))
-                .inAdapterView(withId(R.id.sessions_collection_view))
-                /*
-                Each item within the adapter actually contains info on two different Sessions. We
-                match the session that has the title "Going global with Google Play"
-                 */
-                .onChildView(withText("Going global with Google Play"))
-                .perform(click());
+        viewGoingGlobalWithGooglePlaySessionDetail();
     }
 
     //----------------------------------------------------------------------------------
@@ -82,6 +72,17 @@ public class SesssionDetailActivityTests {
         onView(withId(R.id.session_speakers_block)).perform(scrollTo());
         onView(withText(startsWith("Hirotaka manages the overall"))).check(matches(isDisplayed()));
         onView(withText(startsWith("Koh is currently a Business Development"))).check(matches(isDisplayed()));
+    }
+
+    @Test
+    public void testShouldToggleAddScheduleIcon() {
+        onView(withId(R.id.add_schedule_button)).check(matches(not(isChecked())));
+        onView(withId(R.id.add_schedule_button)).perform(click());
+        onView(isRoot()).perform(pressBack());
+        viewGoingGlobalWithGooglePlaySessionDetail();
+        onView(withId(R.id.add_schedule_button)).check(matches(isChecked()));
+        //Reset the button back to an unchecked state. TODO Normally not necessary if you run tests with clean install on CI server
+        onView(withId(R.id.add_schedule_button)).perform(click());
     }
 
     @Test
@@ -115,6 +116,24 @@ public class SesssionDetailActivityTests {
     //----------------------------------------------------------------------------------
     // Helpers
     //----------------------------------------------------------------------------------
+    private void viewGoingGlobalWithGooglePlaySessionDetail() {
+    /*
+    The CollectionView used to display Sessions has an adapter whose getItem() method returns an
+    Integer. Unfortunately, because of the way that onData() works, this means that we can
+    only select an item in the list by passing in the index of the item that we'd like to
+    select in the CollectionView. Index 1 corresponds to the session entitled "Going Global with
+    Google Play"
+     */
+        onData(allOf(is(instanceOf(Integer.class)), is(1)))
+                .inAdapterView(withId(R.id.sessions_collection_view))
+                /*
+                Each item within the adapter actually contains info on two different Sessions. We
+                match the session that has the title "Going global with Google Play"
+                 */
+                .onChildView(withText("Going global with Google Play"))
+                .perform(click());
+    }
+
     private static Matcher<Intent> hasTargetIntent(final Matcher<Intent> intentMatcher) {
         return new TypeSafeMatcher<Intent>() {
             @Override
