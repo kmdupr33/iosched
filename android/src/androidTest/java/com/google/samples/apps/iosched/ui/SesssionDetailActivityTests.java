@@ -1,0 +1,130 @@
+package com.google.samples.apps.iosched.ui;
+
+import android.content.Intent;
+import android.os.Parcelable;
+import android.support.test.InstrumentationRegistry;
+import android.support.test.espresso.intent.rule.IntentsTestRule;
+import android.support.test.runner.AndroidJUnit4;
+import android.test.ActivityInstrumentationTestCase2;
+import android.test.suitebuilder.annotation.LargeTest;
+import android.util.Log;
+
+import com.google.samples.apps.iosched.R;
+import com.google.samples.apps.iosched.ui.phone.MapActivity;
+
+import org.hamcrest.BaseMatcher;
+import org.hamcrest.Description;
+import org.hamcrest.TypeSafeMatcher;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+
+import static android.support.test.espresso.Espresso.onData;
+import static android.support.test.espresso.Espresso.onView;
+import static android.support.test.espresso.action.ViewActions.click;
+import static android.support.test.espresso.action.ViewActions.scrollTo;
+import static android.support.test.espresso.assertion.ViewAssertions.matches;
+import static android.support.test.espresso.intent.Intents.intended;
+import static android.support.test.espresso.intent.matcher.IntentMatchers.hasAction;
+import static android.support.test.espresso.intent.matcher.IntentMatchers.hasComponent;
+import static android.support.test.espresso.intent.matcher.IntentMatchers.hasData;
+import static android.support.test.espresso.intent.matcher.IntentMatchers.hasExtra;
+import static android.support.test.espresso.intent.matcher.UriMatchers.hasParamWithName;
+import static android.support.test.espresso.intent.matcher.UriMatchers.hasPath;
+import static android.support.test.espresso.matcher.ViewMatchers.isDisplayed;
+import static android.support.test.espresso.matcher.ViewMatchers.withId;
+import static android.support.test.espresso.matcher.ViewMatchers.withText;
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.startsWith;
+
+/**
+ * Created by MattDupree on 7/6/15.
+ */
+@RunWith(AndroidJUnit4.class)
+@LargeTest
+public class SesssionDetailActivityTests {
+
+    @Rule
+    public IntentsTestRule<BrowseSessionsActivity> mActivityRule = new IntentsTestRule<>(BrowseSessionsActivity.class);
+
+    @Before
+    public void setUp() throws Exception {
+        /*
+        The CollectionView used to display Sessions has an adapter whose getItem() method returns an
+        Integer. Unfortunately, because of the way that onData() works, this means that we can
+        only select an item in the list by passing in the index of the item that we'd like to
+        select in the CollectionView. Index 1 corresponds to the session entitled "Going Global with
+        Google Play"
+         */
+        onData(allOf(is(instanceOf(Integer.class)), is(1)))
+                .inAdapterView(withId(R.id.sessions_collection_view))
+                /*
+                Each item within the adapter actually contains info on two different Sessions. We
+                match the session that has the title "Going global with Google Play"
+                 */
+                .onChildView(withText("Going global with Google Play"))
+                .perform(click());
+    }
+
+    @Test
+    public void testGoingGlobalWithGooglePlaySessionDetailInfoAppears() {
+        onView(withId(R.id.session_title)).check(matches(withText("Going global with Google Play")));
+        onView(withId(R.id.session_subtitle)).check(matches(withText("Wed, 1:00–1:45 PM in Room 4")));
+        onView(withId(R.id.session_abstract)).check(matches(withText(startsWith("Think your app or game has what it takes"))));
+        onView(withText("Distribute")).check(matches(isDisplayed()));
+        onView(withText("Android")).check(matches(isDisplayed()));
+        onView(withText("Games")).check(matches(isDisplayed()));
+        onView(withId(R.id.session_speakers_block)).perform(scrollTo());
+        onView(withText(startsWith("Hirotaka manages the overall"))).check(matches(isDisplayed()));
+        onView(withText(startsWith("Koh is currently a Business Development"))).check(matches(isDisplayed()));
+    }
+
+    @Test
+    public void shouldLaunchMapOfGoingGlobalWithGooglePlaySessionLocation() {
+        onView(withId(R.id.menu_map_room)).perform(click());
+        intended(allOf(hasComponent(MapActivity.class.getName()),
+                       hasExtra(BaseMapActivity.EXTRA_ROOM, "room4")));
+    }
+
+    @Test
+    public void shouldLaunchShareGoingGlobalWithGooglePlaySessionInfo() {
+        onView(withId(R.id.menu_share)).perform(click());
+        intended(allOf(hasAction(Intent.ACTION_SEND)));
+        //TODO Write Matcher for Target intent because
+    }
+
+    @Test
+    public void shouldLaunchGooglePlusHashtagSearch() {
+
+    }
+
+    @Test
+    public void shouldLaunchSubmitFeedbackForGoingGlobalWithGooglePlaySession() {
+        onView(withText("Submit Feedback")).perform(scrollTo(), click());
+        intended(allOf(hasAction(Intent.ACTION_VIEW),
+                       hasComponent(SessionFeedbackActivity.class.getName()),
+                       hasData("content://com.google.samples.apps.iosched/sessions/07fd8b0d-80bf-e311-b297-00155d5066d7")));
+    }
+
+
+    private static class TargetIntentMatcher extends TypeSafeMatcher<Intent> {
+        public static final String SHARE_TEXT = "Check out 'Going global with Google Play' at #io14 #android  https://www.google.com/events/io/schedule/session/07fd8b0d-80bf-e311-b297-00155d5066d7";
+
+        @Override
+        public void describeTo(Description description) {
+            description.appendText("has text: ");
+            description.appendText(SHARE_TEXT);
+        }
+
+        @Override
+        protected boolean matchesSafely(Intent item) {
+            Log.i("tset", "DEATH");
+            Intent intent = item.getParcelableExtra(Intent.EXTRA_INTENT);
+            String text = intent.getStringExtra(Intent.EXTRA_TEXT);
+            return text.equals(SHARE_TEXT);
+        }
+    }
+}
