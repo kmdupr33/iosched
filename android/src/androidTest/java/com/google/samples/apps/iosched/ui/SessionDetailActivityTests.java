@@ -44,7 +44,7 @@ import static org.hamcrest.Matchers.startsWith;
  */
 @RunWith(AndroidJUnit4.class)
 @LargeTest
-public class SesssionDetailActivityTests {
+public class SessionDetailActivityTests {
 
     @Rule
     public IntentsTestRule<BrowseSessionsActivity> mActivityRule = new IntentsTestRule<>(BrowseSessionsActivity.class);
