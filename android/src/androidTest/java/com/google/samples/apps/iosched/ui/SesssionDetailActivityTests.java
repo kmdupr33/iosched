@@ -105,6 +105,9 @@ public class SesssionDetailActivityTests {
                        hasData("content://com.google.samples.apps.iosched/sessions/07fd8b0d-80bf-e311-b297-00155d5066d7")));
     }
 
+    //----------------------------------------------------------------------------------
+    // Helpers
+    //----------------------------------------------------------------------------------
     private static Matcher<Intent> hasTargetIntent(final Matcher<Intent> intentMatcher) {
         return new TypeSafeMatcher<Intent>() {
             @Override
