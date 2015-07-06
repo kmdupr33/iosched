@@ -1,18 +1,13 @@
 package com.google.samples.apps.iosched.ui;
 
 import android.content.Intent;
-import android.os.Parcelable;
-import android.support.test.InstrumentationRegistry;
 import android.support.test.espresso.intent.rule.IntentsTestRule;
 import android.support.test.runner.AndroidJUnit4;
-import android.test.ActivityInstrumentationTestCase2;
 import android.test.suitebuilder.annotation.LargeTest;
-import android.util.Log;
 
 import com.google.samples.apps.iosched.R;
 import com.google.samples.apps.iosched.ui.phone.MapActivity;
 
-import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;
@@ -31,8 +26,6 @@ import static android.support.test.espresso.intent.matcher.IntentMatchers.hasAct
 import static android.support.test.espresso.intent.matcher.IntentMatchers.hasComponent;
 import static android.support.test.espresso.intent.matcher.IntentMatchers.hasData;
 import static android.support.test.espresso.intent.matcher.IntentMatchers.hasExtra;
-import static android.support.test.espresso.intent.matcher.UriMatchers.hasParamWithName;
-import static android.support.test.espresso.intent.matcher.UriMatchers.hasPath;
 import static android.support.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static android.support.test.espresso.matcher.ViewMatchers.withId;
 import static android.support.test.espresso.matcher.ViewMatchers.withText;
@@ -42,6 +35,7 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.startsWith;
 
 /**
+ *
  * Created by MattDupree on 7/6/15.
  */
 @RunWith(AndroidJUnit4.class)
