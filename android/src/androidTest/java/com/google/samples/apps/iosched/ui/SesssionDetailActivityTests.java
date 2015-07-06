@@ -45,6 +45,10 @@ public class SesssionDetailActivityTests {
     @Rule
     public IntentsTestRule<BrowseSessionsActivity> mActivityRule = new IntentsTestRule<>(BrowseSessionsActivity.class);
 
+    /*
+    We start from the BrowseSessionsActivity and click into the particular session that we want to test.
+    We do this so that the intent used to launch the SessionDetailActivity has all the right "stuff."
+     */
     @Before
     public void setUp() throws Exception {
         /*
@@ -64,6 +68,9 @@ public class SesssionDetailActivityTests {
                 .perform(click());
     }
 
+    //----------------------------------------------------------------------------------
+    // Tests
+    //----------------------------------------------------------------------------------
     @Test
     public void testGoingGlobalWithGooglePlaySessionDetailInfoAppears() {
         onView(withId(R.id.session_title)).check(matches(withText("Going global with Google Play")));
