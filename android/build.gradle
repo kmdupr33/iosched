@@ -93,21 +93,22 @@ dependencies {
     compile fileTree(dir: 'libs', include: '*.jar')
     compile files('../third_party/glide/library/libs/glide-3.2.0a.jar')
     compile files('../third_party/basic-http-client/libs/basic-http-client-android-0.88.jar')
-
     // Google Maps Android API utility library
     compile('com.google.maps.android:android-maps-utils:0.3+') {
         exclude group: "com.google.android.gms"
     }
-
     /* The two dependencies below are only required while we are using http
-       Drive appdata. When we start using AppData through GMS,
-       they should be removed. */
+                       Drive appdata. When we start using AppData through GMS,
+                       they should be removed. */
     compile 'com.google.http-client:google-http-client-gson:1.+'
     compile 'com.google.apis:google-api-services-drive:+'
+    compile 'io.reactivex:rxjava:1.0.12'
     androidTestCompile 'com.android.support.test:runner:0.3'
     androidTestCompile 'com.android.support.test:rules:0.3'
     androidTestCompile 'com.android.support.test.espresso:espresso-core:2.2'
     androidTestCompile 'com.android.support.test.espresso:espresso-intents:2.2'
+    testCompile 'junit:junit:4.12'
+    testCompile 'org.mockito:mockito-all:2.0.2-beta'
 }
 
 configurations.all {

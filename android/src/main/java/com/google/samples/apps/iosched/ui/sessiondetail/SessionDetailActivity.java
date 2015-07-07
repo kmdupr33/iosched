@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.google.samples.apps.iosched.ui;
+package com.google.samples.apps.iosched.ui.sessiondetail;
 
 import android.app.LoaderManager;
 import android.content.ActivityNotFoundException;
@@ -57,6 +57,11 @@ import com.google.samples.apps.iosched.model.TagMetadata;
 import com.google.samples.apps.iosched.provider.ScheduleContract;
 import com.google.samples.apps.iosched.service.SessionAlarmService;
 import com.google.samples.apps.iosched.service.SessionCalendarService;
+import com.google.samples.apps.iosched.ui.BaseActivity;
+import com.google.samples.apps.iosched.ui.BrowseSessionsActivity;
+import com.google.samples.apps.iosched.ui.MyScheduleActivity;
+import com.google.samples.apps.iosched.ui.SessionFeedbackActivity;
+import com.google.samples.apps.iosched.ui.SessionLivestreamActivity;
 import com.google.samples.apps.iosched.ui.widget.CheckableFrameLayout;
 import com.google.samples.apps.iosched.ui.widget.MessageCardView;
 import com.google.samples.apps.iosched.ui.widget.ObservableScrollView;

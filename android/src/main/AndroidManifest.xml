@@ -183,7 +183,7 @@
             android:label="@string/title_video_library"
         />
 
-        <activity android:name=".ui.SessionDetailActivity"
+        <activity android:name=".ui.sessiondetail.SessionDetailActivity"
             android:label="@string/title_session_detail"
             android:theme="@style/Theme.IOSched.SessionDetails"
             android:parentActivityName=".ui.BrowseSessionsActivity">
