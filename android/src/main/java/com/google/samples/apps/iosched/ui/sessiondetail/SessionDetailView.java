@@ -13,5 +13,41 @@ public interface SessionDetailView {
 
     void renderSessionTags(List<TagMetadata.Tag> loadedSessionTags);
 
-    void renderSessionDetails(SessionDetail loadedSessionDetail);
+    void setSessionColor(int sessionColor);
+
+    void setEmptyViewVisible(boolean showEmptyView);
+
+    void renderSessionTitles(SessionDetail sessionDetail);
+
+    void renderSessionPhoto(String photoUrl);
+
+    void showWatchNowCard();
+
+    void showGiveFeedbackCard();
+
+    void enableSocialStreamMenuItem();
+
+    void setAddScheduleButtonVisible(boolean visible);
+
+    void showStarred(boolean inMySchedule, boolean animate);
+
+    void renderSessionAbstract(String sessionAbstract);
+
+    void updatePlusOneButton(String sessionUrl, boolean isKeynote);
+
+    void renderRequirements(String sessionRequirements);
+
+    void hideRelatedVideos();
+
+    void showLiveStreamLink();
+
+    void showFeedbackLink();
+
+    void showSessionLink(String link);
+
+    void updateTimeBasedUi(boolean dismissedWatchLivestreamCard,
+                           boolean alreadyGaveFeedback, boolean initStarred,
+                           String sessionId, SessionDetail sessionDetail);
+
+    void renderTimeHint(String timeHint);
 }

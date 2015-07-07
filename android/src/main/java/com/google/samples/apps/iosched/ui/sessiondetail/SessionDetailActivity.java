@@ -53,6 +53,7 @@ import com.google.android.gms.plus.PlusOneButton;
 import com.google.android.youtube.player.YouTubeIntents;
 import com.google.samples.apps.iosched.Config;
 import com.google.samples.apps.iosched.R;
+import com.google.samples.apps.iosched.io.model.Speaker;
 import com.google.samples.apps.iosched.model.TagMetadata;
 import com.google.samples.apps.iosched.provider.ScheduleContract;
 import com.google.samples.apps.iosched.service.SessionAlarmService;
@@ -65,13 +66,12 @@ import com.google.samples.apps.iosched.ui.SessionLivestreamActivity;
 import com.google.samples.apps.iosched.ui.widget.CheckableFrameLayout;
 import com.google.samples.apps.iosched.ui.widget.MessageCardView;
 import com.google.samples.apps.iosched.ui.widget.ObservableScrollView;
-import com.google.samples.apps.iosched.util.AccountUtils;
 import com.google.samples.apps.iosched.util.AnalyticsManager;
+import com.google.samples.apps.iosched.util.BaseSubscriber;
 import com.google.samples.apps.iosched.util.BeamUtils;
 import com.google.samples.apps.iosched.util.ImageLoader;
 import com.google.samples.apps.iosched.util.LogUtils;
 import com.google.samples.apps.iosched.util.SessionsHelper;
-import com.google.samples.apps.iosched.util.TimeUtils;
 import com.google.samples.apps.iosched.util.UIUtils;
 
 import java.util.ArrayList;
@@ -87,7 +87,7 @@ import static com.google.samples.apps.iosched.util.LogUtils.LOGD;
  */
 public class SessionDetailActivity extends BaseActivity implements
         LoaderManager.LoaderCallbacks<Cursor>,
-        ObservableScrollView.Callbacks {
+        ObservableScrollView.Callbacks, SessionDetailView {
     private static final String TAG = LogUtils.makeLogTag(SessionDetailActivity.class);
 
     private static final int[] SECTION_HEADER_RES_IDS = {
@@ -158,7 +158,6 @@ public class SessionDetailActivity extends BaseActivity implements
     private boolean mHasPhoto;
     private View mPhotoViewContainer;
     private ImageView mPhotoView;
-    private int mSessionColor;
     private String mLivestreamUrl;
 
     private Runnable mTimeHintUpdaterRunnable = null;
@@ -177,6 +176,7 @@ public class SessionDetailActivity extends BaseActivity implements
     private float mFABElevation;
 
     private int mTagColorDotSize;
+    private SessionDetailResponder mResponder;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -189,6 +189,21 @@ public class SessionDetailActivity extends BaseActivity implements
 
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_session_detail);
+
+        SessionDetailDataLoader sessionDetailDataLoader;
+        sessionDetailDataLoader.getSessionDetailObservable().subscribe(new BaseSubscriber<SessionDetail>() {
+            @Override
+            public void call(SessionDetail sessionDetail) {
+                mHandler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        onScrollChanged(0, 0); // trigger scroll handling
+                        mScrollViewChild.setVisibility(View.VISIBLE);
+                        //mAbstract.setTextIsSelectable(true);
+                    }
+                });
+            }
+        });
 
         final Toolbar toolbar = getActionBarToolbar();
         toolbar.setNavigationIcon(shouldBeFloatingWindow
@@ -395,13 +410,7 @@ public class SessionDetailActivity extends BaseActivity implements
     @Override
     public void onResume() {
         super.onResume();
-        updatePlusOneButton();
-        if (mTimeHintUpdaterRunnable != null) {
-            mHandler.postDelayed(mTimeHintUpdaterRunnable, TIME_HINT_UPDATE_INTERVAL);
-        }
-
-        // Refresh whether or not feedback has been submitted
-        getLoaderManager().restartLoader(FeedbackQuery._TOKEN, null, this);
+        mResponder.onResume();
     }
 
     @Override
@@ -475,57 +484,6 @@ public class SessionDetailActivity extends BaseActivity implements
         }
     }
 
-    private void updateTimeBasedUi() {
-        long currentTimeMillis = UIUtils.getCurrentTime(this);
-        boolean canShowLivestream = mHasLivestream;
-
-        if (canShowLivestream && !mDismissedWatchLivestreamCard
-                && currentTimeMillis > mSessionStart
-                && currentTimeMillis <= mSessionEnd) {
-            // show the "watch now" card
-            showWatchNowCard();
-        } else if (!mAlreadyGaveFeedback && mInitStarred && currentTimeMillis >= (mSessionEnd -
-                Config.FEEDBACK_MILLIS_BEFORE_SESSION_END)
-                && !sDismissedFeedbackCard.contains(mSessionId)) {
-            // show the "give feedback" card
-            showGiveFeedbackCard();
-        }
-
-        String timeHint = "";
-        long countdownMillis = mSessionStart - currentTimeMillis;
-
-        if (TimeUtils.hasConferenceEnded(this)) {
-            // no time hint to display
-            timeHint = "";
-        } else if (currentTimeMillis >= mSessionEnd) {
-            timeHint = getString(R.string.time_hint_session_ended);
-        } else if (currentTimeMillis >= mSessionStart) {
-            long minutesAgo = (currentTimeMillis - mSessionStart) / 60000;
-            if (minutesAgo > 1) {
-                timeHint = getString(R.string.time_hint_started_min, minutesAgo);
-            } else {
-                timeHint = getString(R.string.time_hint_started_just);
-            }
-        } else if (countdownMillis > 0 && countdownMillis < Config.HINT_TIME_BEFORE_SESSION) {
-            long millisUntil = mSessionStart - currentTimeMillis;
-            long minutesUntil = millisUntil / 60000 + (millisUntil % 1000 > 0 ? 1 : 0);
-            if (minutesUntil > 1) {
-                timeHint = getString(R.string.time_hint_about_to_start_min, minutesUntil);
-            } else {
-                timeHint = getString(R.string.time_hint_about_to_start_shortly, minutesUntil);
-            }
-        }
-
-        final TextView timeHintView = (TextView) findViewById(R.id.time_hint);
-
-        if (!TextUtils.isEmpty(timeHint)) {
-            timeHintView.setVisibility(View.VISIBLE);
-            timeHintView.setText(timeHint);
-        } else {
-            timeHintView.setVisibility(View.GONE);
-        }
-    }
-
     private void setTextSelectable(TextView tv) {
         if (tv != null && !tv.isTextSelectable()) {
             tv.setTextIsSelectable(true);
@@ -547,158 +505,6 @@ public class SessionDetailActivity extends BaseActivity implements
         }
         LOGD(TAG, "User " + (mAlreadyGaveFeedback ? "already gave" : "has not given") + " feedback for session.");
         cursor.close();
-    }
-
-    /**
-     * Handle {@link SessionsQuery} {@link Cursor}.
-     */
-    private void onSessionQueryComplete(Cursor cursor) {
-        mSessionCursor = true;
-        if (!cursor.moveToFirst()) {
-            // TODO: Remove this in favor of a callbacks interface that the activity
-            // can implement.
-            finish();
-            return;
-        }
-
-        mTitleString = cursor.getString(SessionsQuery.TITLE);
-        mSessionColor = cursor.getInt(SessionsQuery.COLOR);
-
-        if (mSessionColor == 0) {
-            // no color -- use default
-            mSessionColor = getResources().getColor(R.color.default_session_color);
-        } else {
-            // make sure it's opaque
-            mSessionColor = UIUtils.setColorAlpha(mSessionColor, 255);
-        }
-
-        mHeaderBox.setBackgroundColor(mSessionColor);
-        getLUtils().setStatusBarColor(UIUtils.scaleColor(mSessionColor, 0.8f, false));
-
-        mLivestreamUrl = cursor.getString(SessionsQuery.LIVESTREAM_URL);
-        mHasLivestream = !TextUtils.isEmpty(mLivestreamUrl);
-
-        // Format the time this session occupies
-        mSessionStart = cursor.getLong(SessionsQuery.START);
-        mSessionEnd = cursor.getLong(SessionsQuery.END);
-        mRoomName = cursor.getString(SessionsQuery.ROOM_NAME);
-        mSpeakers = cursor.getString(SessionsQuery.SPEAKER_NAMES);
-        String subtitle = UIUtils.formatSessionSubtitle(
-                mSessionStart, mSessionEnd, mRoomName, mBuffer, this);
-        if (mHasLivestream) {
-            subtitle += " " + UIUtils.getLiveBadgeText(this, mSessionStart, mSessionEnd);
-        }
-
-        mTitle.setText(mTitleString);
-        mSubtitle.setText(subtitle);
-
-        for (int resId : SECTION_HEADER_RES_IDS) {
-            ((TextView) findViewById(resId)).setTextColor(mSessionColor);
-        }
-
-        mPhotoViewContainer.setBackgroundColor(UIUtils.scaleSessionColorToDefaultBG(mSessionColor));
-
-        String photo = cursor.getString(SessionsQuery.PHOTO_URL);
-        if (!TextUtils.isEmpty(photo)) {
-            mHasPhoto = true;
-            mNoPlaceholderImageLoader.loadImage(photo, mPhotoView, new RequestListener<String>() {
-                @Override
-                public void onException(Exception e, String url, Target target) {
-                    mHasPhoto = false;
-                    recomputePhotoAndScrollingMetrics();
-                }
-
-                @Override
-                public void onImageReady(String url, Target target, boolean b, boolean b2) {
-                    // Trigger image transition
-                    recomputePhotoAndScrollingMetrics();
-                }
-            });
-            recomputePhotoAndScrollingMetrics();
-        } else {
-            mHasPhoto = false;
-            recomputePhotoAndScrollingMetrics();
-        }
-
-        mUrl = cursor.getString(SessionsQuery.URL);
-        if (TextUtils.isEmpty(mUrl)) {
-            mUrl = "";
-        }
-
-        mHashTag = cursor.getString(SessionsQuery.HASHTAG);
-        if (!TextUtils.isEmpty(mHashTag)) {
-            enableSocialStreamMenuItemDeferred();
-        }
-
-        mRoomId = cursor.getString(SessionsQuery.ROOM_ID);
-
-        final boolean inMySchedule = cursor.getInt(SessionsQuery.IN_MY_SCHEDULE) != 0;
-
-        setupShareMenuItemDeferred();
-
-        // Handle Keynote as a special case, where the user cannot remove it
-        // from the schedule (it is auto added to schedule on sync)
-        mTagsString = cursor.getString(SessionsQuery.TAGS);
-        mIsKeynote = mTagsString.contains(Config.Tags.SPECIAL_KEYNOTE);
-        mAddScheduleButton.setVisibility(
-                (AccountUtils.hasActiveAccount(this) && !mIsKeynote)
-                        ? View.VISIBLE : View.INVISIBLE);
-
-        tryRenderTags();
-
-        if (!mIsKeynote) {
-            showStarredDeferred(mInitStarred = inMySchedule, false);
-        }
-
-        final String sessionAbstract = cursor.getString(SessionsQuery.ABSTRACT);
-        if (!TextUtils.isEmpty(sessionAbstract)) {
-            UIUtils.setTextMaybeHtml(mAbstract, sessionAbstract);
-            mAbstract.setVisibility(View.VISIBLE);
-            mHasSummaryContent = true;
-        } else {
-            mAbstract.setVisibility(View.GONE);
-        }
-
-        updatePlusOneButton();
-
-        // Build requirements section
-        final View requirementsBlock = findViewById(R.id.session_requirements_block);
-        final String sessionRequirements = cursor.getString(SessionsQuery.REQUIREMENTS);
-        if (!TextUtils.isEmpty(sessionRequirements)) {
-            UIUtils.setTextMaybeHtml(mRequirements, sessionRequirements);
-            requirementsBlock.setVisibility(View.VISIBLE);
-            mHasSummaryContent = true;
-        } else {
-            requirementsBlock.setVisibility(View.GONE);
-        }
-
-        // Build related videos section
-        final ViewGroup relatedVideosBlock = (ViewGroup) findViewById(R.id.related_videos_block);
-        relatedVideosBlock.setVisibility(View.GONE);
-
-        // Build links section
-        buildLinksSection(cursor);
-
-        updateEmptyView();
-
-        updateTimeBasedUi();
-        mHandler.post(new Runnable() {
-            @Override
-            public void run() {
-                onScrollChanged(0, 0); // trigger scroll handling
-                mScrollViewChild.setVisibility(View.VISIBLE);
-                //mAbstract.setTextIsSelectable(true);
-            }
-        });
-
-        mTimeHintUpdaterRunnable = new Runnable() {
-            @Override
-            public void run() {
-                updateTimeBasedUi();
-                mHandler.postDelayed(mTimeHintUpdaterRunnable, TIME_HINT_UPDATE_INTERVAL);
-            }
-        };
-        mHandler.postDelayed(mTimeHintUpdaterRunnable, TIME_HINT_UPDATE_INTERVAL);
     }
 
     private void tryRenderTags() {
@@ -767,46 +573,10 @@ public class SessionDetailActivity extends BaseActivity implements
         }
     }
 
-    private void buildLinksSection(Cursor cursor) {
+    private void buildLinksSection(List<Pair<Integer, Object>> links) {
         // Compile list of links (I/O live link, submit feedback, and normal links)
         ViewGroup linkContainer = (ViewGroup) findViewById(R.id.links_container);
         linkContainer.removeAllViews();
-
-
-        // Build links section
-        // the Object can be either a string URL or an Intent
-        List<Pair<Integer, Object>> links = new ArrayList<Pair<Integer, Object>>();
-
-        long currentTimeMillis = UIUtils.getCurrentTime(this);
-        if (mHasLivestream
-                && currentTimeMillis > mSessionStart
-                && currentTimeMillis <= mSessionEnd) {
-            links.add(new Pair<Integer, Object>(
-                    R.string.session_link_livestream,
-                    getWatchLiveIntent(this)));
-        }
-
-        // Add session feedback link, if appropriate
-        if (!mAlreadyGaveFeedback && currentTimeMillis > mSessionEnd
-                - Config.FEEDBACK_MILLIS_BEFORE_SESSION_END) {
-            links.add(new Pair<Integer, Object>(
-                    R.string.session_feedback_submitlink,
-                    getFeedbackIntent()
-            ));
-        }
-
-        for (int i = 0; i < SessionsQuery.LINKS_INDICES.length; i++) {
-            final String linkUrl = cursor.getString(SessionsQuery.LINKS_INDICES[i]);
-            if (TextUtils.isEmpty(linkUrl)) {
-                continue;
-            }
-
-            links.add(new Pair<Integer, Object>(
-                    SessionsQuery.LINKS_TITLES[i],
-                    new Intent(Intent.ACTION_VIEW, Uri.parse(linkUrl))
-                            .addFlags(Intent.FLAG_ACTIVITY_CLEAR_WHEN_TASK_RESET)
-            ));
-        }
 
         // Render links
         if (links.size() > 0) {
@@ -889,20 +659,54 @@ public class SessionDetailActivity extends BaseActivity implements
                 SessionLivestreamActivity.class);
     }
 
-    private void updatePlusOneButton() {
+    @Override
+    public void updatePlusOneButton(String sessionUrl, boolean isKeynote) {
         if (mPlusOneButton == null) {
             return;
         }
 
-        if (!TextUtils.isEmpty(mUrl) && !mIsKeynote) {
-            mPlusOneButton.initialize(mUrl, 0);
+        if (!TextUtils.isEmpty(sessionUrl) && !isKeynote) {
+            mPlusOneButton.initialize(sessionUrl, 0);
             mPlusOneButton.setVisibility(View.VISIBLE);
         } else {
             mPlusOneButton.setVisibility(View.GONE);
         }
     }
 
-    private void showWatchNowCard() {
+    @Override
+    public void renderRequirements(String sessionRequirements) {
+        // Build requirements section
+        final View requirementsBlock = findViewById(R.id.session_requirements_block);
+        if (!TextUtils.isEmpty(sessionRequirements)) {
+            UIUtils.setTextMaybeHtml(mRequirements, sessionRequirements);
+            requirementsBlock.setVisibility(View.VISIBLE);
+            mHasSummaryContent = true;
+        } else {
+            requirementsBlock.setVisibility(View.GONE);
+        }
+    }
+
+    @Override
+    public void hideRelatedVideos() {
+        // Build related videos section
+        final ViewGroup relatedVideosBlock = (ViewGroup) findViewById(R.id.related_videos_block);
+        relatedVideosBlock.setVisibility(View.GONE);
+    }
+
+    @Override
+    public void renderTimeHint(String timeHint) {
+        final TextView timeHintView = (TextView) findViewById(R.id.time_hint);
+
+        if (!TextUtils.isEmpty(timeHint)) {
+            timeHintView.setVisibility(View.VISIBLE);
+            timeHintView.setText(timeHint);
+        } else {
+            timeHintView.setVisibility(View.GONE);
+        }
+    }
+
+    @Override
+    public void showWatchNowCard() {
         final MessageCardView messageCardView = (MessageCardView) findViewById(R.id.live_now_card);
         messageCardView.show();
         messageCardView.setListener(new MessageCardView.OnMessageCardButtonClicked() {
@@ -919,7 +723,8 @@ public class SessionDetailActivity extends BaseActivity implements
         });
     }
 
-    private void showGiveFeedbackCard() {
+    @Override
+    public void showGiveFeedbackCard() {
         final MessageCardView messageCardView = (MessageCardView) findViewById(R.id.give_feedback_card);
         messageCardView.show();
         messageCardView.setListener(new MessageCardView.OnMessageCardButtonClicked() {
@@ -949,7 +754,8 @@ public class SessionDetailActivity extends BaseActivity implements
                 SessionFeedbackActivity.class);
     }
 
-    private void enableSocialStreamMenuItemDeferred() {
+    @Override
+    public void enableSocialStreamMenuItem() {
         mDeferredUiOperations.add(new Runnable() {
             @Override
             public void run() {
@@ -957,6 +763,11 @@ public class SessionDetailActivity extends BaseActivity implements
             }
         });
         tryExecuteDeferredUiOperations();
+    }
+
+    @Override
+    public void setAddScheduleButtonVisible(boolean visible) {
+        mAddScheduleButton.setVisibility(visible ? View.VISIBLE : View.INVISIBLE);
     }
 
     private void showStarredDeferred(final boolean starred, final boolean allowAnimate) {
@@ -969,7 +780,8 @@ public class SessionDetailActivity extends BaseActivity implements
         tryExecuteDeferredUiOperations();
     }
 
-    private void showStarred(boolean starred, boolean allowAnimate) {
+    @Override
+    public void showStarred(boolean starred, boolean allowAnimate) {
         mStarred = starred;
 
         mAddScheduleButton.setChecked(mStarred, allowAnimate);
@@ -977,8 +789,18 @@ public class SessionDetailActivity extends BaseActivity implements
         ImageView iconView = (ImageView) mAddScheduleButton.findViewById(R.id.add_schedule_icon);
         getLUtils().setOrAnimatePlusCheckIcon(iconView, starred, allowAnimate);
         mAddScheduleButton.setContentDescription(getString(starred
-                ? R.string.remove_from_schedule_desc
-                : R.string.add_to_schedule_desc));
+                                                                   ? R.string.remove_from_schedule_desc
+                                                                   : R.string.add_to_schedule_desc));
+    }
+
+    @Override
+    public void renderSessionAbstract(String sessionAbstract) {
+        if (!TextUtils.isEmpty(sessionAbstract)) {
+            UIUtils.setTextMaybeHtml(mAbstract, sessionAbstract);
+            mAbstract.setVisibility(View.VISIBLE);
+        } else {
+            mAbstract.setVisibility(View.GONE);
+        }
     }
 
     private void setupShareMenuItemDeferred() {
@@ -1150,6 +972,76 @@ public class SessionDetailActivity extends BaseActivity implements
          * [/ANALYTICS]
          */
         AnalyticsManager.sendEvent("Session", getString(actionId), mTitleString, 0L);
+    }
+
+    @Override
+    public void renderSessionSpeakers(List<Speaker> speakers) {
+
+    }
+
+    @Override
+    public void renderSessionTags(List<TagMetadata.Tag> loadedSessionTags) {
+        if (loadedSessionTags.size() == 0) {
+            mTagsContainer.setVisibility(View.GONE);
+            return;
+        }
+    }
+
+    @Override
+    public void setSessionColor(int sessionColor) {
+        mHeaderBox.setBackgroundColor(sessionColor);
+        getLUtils().setStatusBarColor(UIUtils.scaleColor(sessionColor, 0.8f, false));
+        for (int resId : SECTION_HEADER_RES_IDS) {
+            ((TextView) findViewById(resId)).setTextColor(sessionColor);
+        }
+
+        mPhotoViewContainer.setBackgroundColor(UIUtils.scaleSessionColorToDefaultBG(sessionColor));
+    }
+
+    @Override
+    public void setEmptyViewVisible(boolean showEmptyView) {
+
+    }
+
+    @Override
+    public void renderSessionTitles(SessionDetail sessionDetail) {
+        // Format the time this session occupies
+        long sessionStart = sessionDetail.getSessionStart();
+        long sessionEnd = sessionDetail.getSessionEnd();
+        String roomName = sessionDetail.getRoomName();
+        String subtitle = UIUtils.formatSessionSubtitle(
+                sessionStart, sessionEnd, roomName, new StringBuilder(), this);
+        if (hasLivestream) {
+            subtitle += " " + UIUtils.getLiveBadgeText(this, sessionStart, sessionEnd);
+        }
+
+        mTitle.setText(mTitleString);
+        mSubtitle.setText(subtitle);
+
+    }
+
+    @Override
+    public void renderSessionPhoto(String photoUrl) {
+        if (!TextUtils.isEmpty(photoUrl)) {
+            mHasPhoto = true;
+            mNoPlaceholderImageLoader.loadImage(photoUrl, mPhotoView, new RequestListener<String>() {
+                @Override
+                public void onException(Exception e, String url, Target target) {
+                    mHasPhoto = false;
+                    recomputePhotoAndScrollingMetrics();
+                }
+
+                @Override
+                public void onImageReady(String url, Target target, boolean b, boolean b2) {
+                    // Trigger image transition
+                    recomputePhotoAndScrollingMetrics();
+                }
+            });
+            recomputePhotoAndScrollingMetrics();
+        } else {
+            mHasPhoto = false;
+            recomputePhotoAndScrollingMetrics();
+        }
     }
 
     /**
