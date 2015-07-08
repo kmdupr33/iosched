@@ -17,11 +17,15 @@ import org.w3c.dom.NameList;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.google.samples.apps.iosched.util.LogUtils.LOGD;
+
 /**
  *
  * Created by MattDupree on 7/7/15.
  */
 public class SessionDetailPresenter {
+
+    private static final String TAG = SessionDetailPresenter.class.getSimpleName();
 
     //Dependencies
     private SessionDetailView mSessionDetailView;
@@ -66,10 +70,10 @@ public class SessionDetailPresenter {
                 onTagsLoaded(tags);
             }
         });
-        mSessionDetailDataLoader.getFeedbackObservable().subscribe(new BaseSubscriber<SessionFeedback>() {
+        mSessionDetailDataLoader.getFeedbackObservable().subscribe(new BaseSubscriber<Boolean>() {
             @Override
-            public void onNext(SessionFeedback sessionFeedback) {
-                onFeedbackLoaded(sessionFeedback);
+            public void onNext(Boolean alreadyGaveFeedback) {
+                onFeedbackLoaded(alreadyGaveFeedback);
             }
         });
         mSessionDetailDataLoader.load();
@@ -216,7 +220,11 @@ public class SessionDetailPresenter {
         mSessionDetailView.renderSessionTags(tags);
     }
 
-    private void onFeedbackLoaded(SessionFeedback sessionFeedback) {
-
+    private void onFeedbackLoaded(boolean alreadyGaveSessionFeedback) {
+        if (alreadyGaveSessionFeedback) {
+            mSessionDetailView.hideSessionCardView();
+            mSessionDetailView.hideSubmitFeedbackButton();
+        }
+        LOGD(TAG, "User " + (alreadyGaveSessionFeedback ? "already gave" : "has not given") + " feedback for session.");
     }
 }

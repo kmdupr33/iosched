@@ -490,23 +490,6 @@ public class SessionDetailActivity extends BaseActivity implements
         }
     }
 
-    private void onFeedbackQueryComplete(Cursor cursor) {
-        // Is there existing feedback for this session?
-        mAlreadyGaveFeedback = cursor.getCount() > 0;
-
-        if (mAlreadyGaveFeedback) {
-            final MessageCardView giveFeedbackCardView = (MessageCardView) findViewById(R.id.give_feedback_card);
-            if (giveFeedbackCardView != null) {
-                giveFeedbackCardView.setVisibility(View.GONE);
-            }
-            if (mSubmitFeedbackView != null) {
-                mSubmitFeedbackView.setVisibility(View.GONE);
-            }
-        }
-        LOGD(TAG, "User " + (mAlreadyGaveFeedback ? "already gave" : "has not given") + " feedback for session.");
-        cursor.close();
-    }
-
     private void tryRenderTags() {
         if (mTagMetadata == null || mTagsString == null) {
             return;
@@ -702,6 +685,21 @@ public class SessionDetailActivity extends BaseActivity implements
             timeHintView.setText(timeHint);
         } else {
             timeHintView.setVisibility(View.GONE);
+        }
+    }
+
+    @Override
+    public void hideSessionCardView() {
+        final MessageCardView giveFeedbackCardView = (MessageCardView) findViewById(R.id.give_feedback_card);
+        if (giveFeedbackCardView != null) {
+            giveFeedbackCardView.setVisibility(View.GONE);
+        }
+    }
+
+    @Override
+    public void hideSubmitFeedbackButton() {
+        if (mSubmitFeedbackView != null) {
+            mSubmitFeedbackView.setVisibility(View.GONE);
         }
     }
 
@@ -1011,7 +1009,7 @@ public class SessionDetailActivity extends BaseActivity implements
         String roomName = sessionDetail.getRoomName();
         String subtitle = UIUtils.formatSessionSubtitle(
                 sessionStart, sessionEnd, roomName, new StringBuilder(), this);
-        if (hasLivestream) {
+        if (sessionDetail.hasLiveStream()) {
             subtitle += " " + UIUtils.getLiveBadgeText(this, sessionStart, sessionEnd);
         }
 

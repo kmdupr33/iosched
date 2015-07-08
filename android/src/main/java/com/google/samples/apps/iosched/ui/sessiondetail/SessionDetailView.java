@@ -50,4 +50,8 @@ public interface SessionDetailView {
                            String sessionId, SessionDetail sessionDetail);
 
     void renderTimeHint(String timeHint);
+
+    void hideSessionCardView();
+
+    void hideSubmitFeedbackButton();
 }

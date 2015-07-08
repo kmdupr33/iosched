@@ -18,7 +18,7 @@ public interface SessionDetailDataLoader {
 
     Observable<List<TagMetadata.Tag>> getTagsObservable();
 
-    Observable<SessionFeedback> getFeedbackObservable();
+    Observable<Boolean> getFeedbackObservable();
 
     void load();
 }
