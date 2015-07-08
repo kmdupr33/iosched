@@ -18,10 +18,7 @@ package com.google.samples.apps.iosched.ui.sessiondetail;
 
 import android.app.LoaderManager;
 import android.content.ActivityNotFoundException;
-import android.content.Context;
-import android.content.CursorLoader;
 import android.content.Intent;
-import android.content.Loader;
 import android.content.res.Resources;
 import android.database.Cursor;
 import android.graphics.Paint;
@@ -50,7 +47,6 @@ import android.widget.TextView;
 import com.bumptech.glide.request.bitmap.RequestListener;
 import com.bumptech.glide.request.target.Target;
 import com.google.android.gms.plus.PlusOneButton;
-import com.google.android.youtube.player.YouTubeIntents;
 import com.google.samples.apps.iosched.Config;
 import com.google.samples.apps.iosched.R;
 import com.google.samples.apps.iosched.io.model.Speaker;
@@ -61,8 +57,6 @@ import com.google.samples.apps.iosched.service.SessionCalendarService;
 import com.google.samples.apps.iosched.ui.BaseActivity;
 import com.google.samples.apps.iosched.ui.BrowseSessionsActivity;
 import com.google.samples.apps.iosched.ui.MyScheduleActivity;
-import com.google.samples.apps.iosched.ui.SessionFeedbackActivity;
-import com.google.samples.apps.iosched.ui.SessionLivestreamActivity;
 import com.google.samples.apps.iosched.ui.widget.CheckableFrameLayout;
 import com.google.samples.apps.iosched.ui.widget.MessageCardView;
 import com.google.samples.apps.iosched.ui.widget.ObservableScrollView;
@@ -76,8 +70,11 @@ import com.google.samples.apps.iosched.util.UIUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
+
+import javax.inject.Inject;
+
+import dagger.ObjectGraph;
 
 import static com.google.samples.apps.iosched.util.LogUtils.LOGD;
 
@@ -86,7 +83,6 @@ import static com.google.samples.apps.iosched.util.LogUtils.LOGD;
  * time information, speaker photos and bios, etc.
  */
 public class SessionDetailActivity extends BaseActivity implements
-        LoaderManager.LoaderCallbacks<Cursor>,
         ObservableScrollView.Callbacks, SessionDetailView {
     private static final String TAG = LogUtils.makeLogTag(SessionDetailActivity.class);
 
@@ -101,7 +97,6 @@ public class SessionDetailActivity extends BaseActivity implements
     public static final String TRANSITION_NAME_PHOTO = "photo";
 
     private Handler mHandler = new Handler();
-    private static final int TIME_HINT_UPDATE_INTERVAL = 10000; // 10 sec
 
     private TagMetadata mTagMetadata;
 
@@ -147,7 +142,7 @@ public class SessionDetailActivity extends BaseActivity implements
     private boolean mHasSummaryContent = false;
 
     private ImageLoader mSpeakersImageLoader, mNoPlaceholderImageLoader;
-    private List<Runnable> mDeferredUiOperations = new ArrayList<Runnable>();
+    private List<Runnable> mDeferredUiOperations = new ArrayList<>();
 
     private StringBuilder mBuffer = new StringBuilder();
 
@@ -160,16 +155,9 @@ public class SessionDetailActivity extends BaseActivity implements
     private ImageView mPhotoView;
     private String mLivestreamUrl;
 
-    private Runnable mTimeHintUpdaterRunnable = null;
-
     private boolean mAlreadyGaveFeedback = false;
     private boolean mIsKeynote = false;
 
-    // this set stores the session IDs for which the user has dismissed the
-    // "give feedback" card. This information is kept for the duration of the app's execution
-    // so that if they say "No, thanks", we don't show the card again for that session while
-    // the app is still executing.
-    private static HashSet<String> sDismissedFeedbackCard = new HashSet<String>();
 
     private TextView mSubmitFeedbackView;
     private float mMaxHeaderElevation;
@@ -177,6 +165,11 @@ public class SessionDetailActivity extends BaseActivity implements
 
     private int mTagColorDotSize;
     private SessionDetailResponder mResponder;
+    private MessageCardView mWatchNowCardView;
+    private MessageCardView mGiveFeedbackCard;
+
+    @Inject
+    SessionDetailDataLoader mSessionDetailDataLoader;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -186,20 +179,19 @@ public class SessionDetailActivity extends BaseActivity implements
         if (shouldBeFloatingWindow) {
             setupFloatingWindow();
         }
-
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_session_detail);
-
-        SessionDetailDataLoader sessionDetailDataLoader;
-        sessionDetailDataLoader.getSessionDetailObservable().subscribe(new BaseSubscriber<SessionDetail>() {
+        //TODO Move object graph creation to Application class
+        ObjectGraph objectGraph = ObjectGraph.create(new SessionDetailModule(this));
+        objectGraph.inject(this);
+        mSessionDetailDataLoader.addSessionDetailLoadedSubscriber(new BaseSubscriber<SessionDetail>() {
             @Override
-            public void call(SessionDetail sessionDetail) {
+            public void onNext(SessionDetail sessionDetail) {
                 mHandler.post(new Runnable() {
                     @Override
                     public void run() {
                         onScrollChanged(0, 0); // trigger scroll handling
                         mScrollViewChild.setVisibility(View.VISIBLE);
-                        //mAbstract.setTextIsSelectable(true);
                     }
                 });
             }
@@ -301,9 +293,9 @@ public class SessionDetailActivity extends BaseActivity implements
         ViewCompat.setTransitionName(mPhotoView, TRANSITION_NAME_PHOTO);
 
         LoaderManager manager = getLoaderManager();
-        manager.initLoader(SessionsQuery._TOKEN, null, this);
-        manager.initLoader(SpeakersQuery._TOKEN, null, this);
-        manager.initLoader(TAG_METADATA_TOKEN, null, this);
+//        manager.initLoader(SessionsQuery._TOKEN, null, this);
+//        manager.initLoader(SpeakersQuery._TOKEN, null, this);
+//        manager.initLoader(TAG_METADATA_TOKEN, null, this);
     }
 
     @Override
@@ -626,20 +618,7 @@ public class SessionDetailActivity extends BaseActivity implements
     @Override
     public void onPause() {
         super.onPause();
-        if (mTimeHintUpdaterRunnable != null) {
-            mHandler.removeCallbacks(mTimeHintUpdaterRunnable);
-        }
-    }
-
-    private Intent getWatchLiveIntent(Context context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP &&
-                YouTubeIntents.canResolvePlayVideoIntent(context)) {
-            String youtubeVideoId = SessionLivestreamActivity.getVideoIdFromUrl(mLivestreamUrl);
-            return YouTubeIntents.createPlayVideoIntentWithOptions(
-                    context, youtubeVideoId, true, false);
-        }
-        return new Intent(Intent.ACTION_VIEW, mSessionUri).setClass(context,
-                SessionLivestreamActivity.class);
+        mResponder.onPause();
     }
 
     @Override
@@ -677,6 +656,28 @@ public class SessionDetailActivity extends BaseActivity implements
     }
 
     @Override
+    public void showLiveStreamLink() {
+
+    }
+
+    @Override
+    public void showFeedbackLink() {
+
+    }
+
+    @Override
+    public void showSessionLink(String link) {
+
+    }
+
+    @Override
+    public void updateTimeBasedUi(boolean dismissedWatchLivestreamCard, boolean alreadyGaveFeedback,
+                                  boolean initStarred, String sessionId,
+                                  SessionDetail sessionDetail) {
+
+    }
+
+    @Override
     public void renderTimeHint(String timeHint) {
         final TextView timeHintView = (TextView) findViewById(R.id.time_hint);
 
@@ -704,52 +705,37 @@ public class SessionDetailActivity extends BaseActivity implements
     }
 
     @Override
+    public void hideWatchNowView() {
+        mWatchNowCardView.dismiss();
+    }
+
+    @Override
+    public void hideFeedbackCard() {
+        mGiveFeedbackCard.dismiss();
+    }
+
+    @Override
     public void showWatchNowCard() {
-        final MessageCardView messageCardView = (MessageCardView) findViewById(R.id.live_now_card);
-        messageCardView.show();
-        messageCardView.setListener(new MessageCardView.OnMessageCardButtonClicked() {
+        mWatchNowCardView = (MessageCardView) findViewById(R.id.live_now_card);
+        mWatchNowCardView.show();
+        mWatchNowCardView.setListener(new MessageCardView.OnMessageCardButtonClicked() {
             @Override
             public void onMessageCardButtonClicked(String tag) {
-                if ("WATCH_NOW".equals(tag)) {
-                    Intent intent = getWatchLiveIntent(SessionDetailActivity.this);
-                    startActivity(intent);
-                } else {
-                    mDismissedWatchLivestreamCard = true;
-                    messageCardView.dismiss();
-                }
+                mResponder.onWatchNowCardClicked(tag, SessionDetailActivity.this);
             }
         });
     }
 
     @Override
     public void showGiveFeedbackCard() {
-        final MessageCardView messageCardView = (MessageCardView) findViewById(R.id.give_feedback_card);
-        messageCardView.show();
-        messageCardView.setListener(new MessageCardView.OnMessageCardButtonClicked() {
+        mGiveFeedbackCard = (MessageCardView) findViewById(R.id.give_feedback_card);
+        mGiveFeedbackCard.show();
+        mGiveFeedbackCard.setListener(new MessageCardView.OnMessageCardButtonClicked() {
             @Override
             public void onMessageCardButtonClicked(String tag) {
-                if ("GIVE_FEEDBACK".equals(tag)) {
-                    /* [ANALYTICS:EVENT]
-                     * TRIGGER:   Click on the Send Feedback action on the Session Details page.
-                     * CATEGORY:  'Session'
-                     * ACTION:    'Feedback'
-                     * LABEL:     session title/subtitle
-                     * [/ANALYTICS]
-                     */
-                    AnalyticsManager.sendEvent("Session", "Feedback", mTitleString, 0L);
-                    Intent intent = getFeedbackIntent();
-                    startActivity(intent);
-                } else {
-                    sDismissedFeedbackCard.add(mSessionId);
-                    messageCardView.dismiss();
-                }
+                mResponder.onFeedbackCardClicked(tag, SessionDetailActivity.this);
             }
         });
-    }
-
-    private Intent getFeedbackIntent() {
-        return new Intent(Intent.ACTION_VIEW, mSessionUri, this,
-                SessionFeedbackActivity.class);
     }
 
     @Override
@@ -1137,43 +1123,43 @@ public class SessionDetailActivity extends BaseActivity implements
 
     private static final int TAG_METADATA_TOKEN = 0x5;
 
-    @Override
-    public Loader<Cursor> onCreateLoader(int id, Bundle data) {
-        CursorLoader loader = null;
-        if (id == SessionsQuery._TOKEN){
-            loader = new CursorLoader(this, mSessionUri, SessionsQuery.PROJECTION, null,
-                    null, null);
-        } else if (id == SpeakersQuery._TOKEN  && mSessionUri != null){
-            Uri speakersUri = ScheduleContract.Sessions.buildSpeakersDirUri(mSessionId);
-            loader = new CursorLoader(this, speakersUri, SpeakersQuery.PROJECTION, null,
-                    null, ScheduleContract.Speakers.DEFAULT_SORT);
-        } else if (id == FeedbackQuery._TOKEN) {
-            Uri feedbackUri = ScheduleContract.Feedback.buildFeedbackUri(mSessionId);
-            loader = new CursorLoader(this, feedbackUri, FeedbackQuery.PROJECTION, null,
-                    null, null);
-        } else if (id == TAG_METADATA_TOKEN) {
-            loader = TagMetadata.createCursorLoader(this);
-        }
-        return loader;
-    }
+//    @Override
+//    public Loader<Cursor> onCreateLoader(int id, Bundle data) {
+//        CursorLoader loader = null;
+//        if (id == SessionsQuery._TOKEN){
+//            loader = new CursorLoader(this, mSessionUri, SessionsQuery.PROJECTION, null,
+//                    null, null);
+//        } else if (id == SpeakersQuery._TOKEN  && mSessionUri != null){
+//            Uri speakersUri = ScheduleContract.Sessions.buildSpeakersDirUri(mSessionId);
+//            loader = new CursorLoader(this, speakersUri, SpeakersQuery.PROJECTION, null,
+//                    null, ScheduleContract.Speakers.DEFAULT_SORT);
+//        } else if (id == FeedbackQuery._TOKEN) {
+//            Uri feedbackUri = ScheduleContract.Feedback.buildFeedbackUri(mSessionId);
+//            loader = new CursorLoader(this, feedbackUri, FeedbackQuery.PROJECTION, null,
+//                    null, null);
+//        } else if (id == TAG_METADATA_TOKEN) {
+//            loader = TagMetadata.createCursorLoader(this);
+//        }
+//        return loader;
+//    }
 
-    @Override
-    public void onLoadFinished(Loader<Cursor> loader, Cursor cursor) {
-        if (loader.getId() == SessionsQuery._TOKEN) {
-            onSessionQueryComplete(cursor);
-        } else if (loader.getId() == SpeakersQuery._TOKEN) {
-            onSpeakersQueryComplete(cursor);
-        } else if (loader.getId() == FeedbackQuery._TOKEN) {
-            onFeedbackQueryComplete(cursor);
-        } else if (loader.getId() == TAG_METADATA_TOKEN) {
-            mTagMetadata = new TagMetadata(cursor);
-            cursor.close();
-            tryRenderTags();
-        } else {
-            cursor.close();
-        }
-    }
+//    @Override
+//    public void onLoadFinished(Loader<Cursor> loader, Cursor cursor) {
+//        if (loader.getId() == SessionsQuery._TOKEN) {
+//            onSessionQueryComplete(cursor);
+//        } else if (loader.getId() == SpeakersQuery._TOKEN) {
+//            onSpeakersQueryComplete(cursor);
+//        } else if (loader.getId() == FeedbackQuery._TOKEN) {
+//            onFeedbackQueryComplete(cursor);
+//        } else if (loader.getId() == TAG_METADATA_TOKEN) {
+//            mTagMetadata = new TagMetadata(cursor);
+//            cursor.close();
+//            tryRenderTags();
+//        } else {
+//            cursor.close();
+//        }
+//    }
 
-    @Override
-    public void onLoaderReset(Loader<Cursor> loader) {}
+//    @Override
+//    public void onLoaderReset(Loader<Cursor> loader) {}
 }

@@ -54,4 +54,8 @@ public interface SessionDetailView {
     void hideSessionCardView();
 
     void hideSubmitFeedbackButton();
+
+    void hideWatchNowView();
+
+    void hideFeedbackCard();
 }

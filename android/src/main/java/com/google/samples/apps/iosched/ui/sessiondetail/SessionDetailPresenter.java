@@ -12,9 +12,8 @@ import com.google.samples.apps.iosched.util.BaseSubscriber;
 import com.google.samples.apps.iosched.util.TimeUtils;
 import com.google.samples.apps.iosched.util.UserAccount;
 
-import org.w3c.dom.NameList;
-
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 
 import static com.google.samples.apps.iosched.util.LogUtils.LOGD;
@@ -40,6 +39,8 @@ public class SessionDetailPresenter {
     private boolean mHasSummaryContent;
     private String mTagsString;
     private TagMetadata mTagMetadata;
+    private boolean mAlreadyGaveFeedback;
+    private boolean mInitStarred;
 
     public SessionDetailPresenter(SessionDetailView sessionDetailView,
                                   SessionDetailDataLoader sessionDetailDataLoader,
@@ -52,25 +53,27 @@ public class SessionDetailPresenter {
     }
 
     public void present() {
-        mSessionDetailDataLoader.getSpeakersObservable().subscribe(new BaseSubscriber<List<Speaker>>() {
+        mSessionDetailDataLoader.addSpeakersLoadedSubscriber(new BaseSubscriber<List<Speaker>>() {
+
             @Override
             public void onNext(List<Speaker> speakers) {
                 onSpeakersLoaded(speakers);
             }
         });
-        mSessionDetailDataLoader.getSessionDetailObservable().subscribe(new BaseSubscriber<SessionDetail>() {
-            @Override
-            public void onNext(SessionDetail sessionDetail) {
-                onSessionDetailLoaded(sessionDetail);
-            }
-        });
-        mSessionDetailDataLoader.getTagsObservable().subscribe(new BaseSubscriber<List<TagMetadata.Tag>>() {
+        mSessionDetailDataLoader.addSessionDetailLoadedSubscriber(
+                new BaseSubscriber<SessionDetail>() {
+                    @Override
+                    public void onNext(SessionDetail sessionDetail) {
+                        onSessionDetailLoaded(sessionDetail);
+                    }
+                });
+        mSessionDetailDataLoader.addTagsLoadedSubscriber(new BaseSubscriber<List<TagMetadata.Tag>>() {
             @Override
             public void onNext(List<TagMetadata.Tag> tags) {
                 onTagsLoaded(tags);
             }
         });
-        mSessionDetailDataLoader.getFeedbackObservable().subscribe(new BaseSubscriber<Boolean>() {
+        mSessionDetailDataLoader.addFeedbackLoadedSubscriber(new BaseSubscriber<Boolean>() {
             @Override
             public void onNext(Boolean alreadyGaveFeedback) {
                 onFeedbackLoaded(alreadyGaveFeedback);
@@ -80,15 +83,14 @@ public class SessionDetailPresenter {
     }
 
     public void updateTimeBasedUi(SessionDetail sessionDetail, boolean dismissedWatchLivestreamCard,
-                                  boolean alreadyGaveFeedback, boolean initStarred,
-                                  NameList sDismissedFeedbackCard, String sessionId) {
+                                  HashSet<String> sDismissedFeedbackCard) {
 
         long currentTimeMillis = System.currentTimeMillis();
 
         if (sessionDetail.isLiveStreamAvailableNow() && !dismissedWatchLivestreamCard) {
             mSessionDetailView.showWatchNowCard();
-        } else if (!alreadyGaveFeedback && initStarred && sessionDetail.canGiveFeedbackNow()
-                && !sDismissedFeedbackCard.contains(sessionId)) {
+        } else if (!mAlreadyGaveFeedback && mInitStarred && sessionDetail.canGiveFeedbackNow()
+                && !sDismissedFeedbackCard.contains(mSessionDetailDataLoader.getSessionId())) {
             // show the "give feedback" card
             mSessionDetailView.showGiveFeedbackCard();
         }
@@ -131,7 +133,6 @@ public class SessionDetailPresenter {
 
     private void onSessionDetailLoaded(SessionDetail sessionDetail) {
         mSessionDetailLoaded = true;
-
         int sessionColor = mColorResolver.resolveSessionColor(sessionDetail.getColor());
         mSessionDetailView.setSessionColor(sessionColor);
 
@@ -154,6 +155,7 @@ public class SessionDetailPresenter {
 
         final boolean inMySchedule = sessionDetail.isInMySchedule();
         if (!isKeynote) {
+            mInitStarred = inMySchedule;
             mSessionDetailView.showStarred(inMySchedule, false);
         }
 
@@ -180,8 +182,7 @@ public class SessionDetailPresenter {
         }
 
         // Add session feedback link, if appropriate
-        boolean alreadyGaveFeedback = false;
-        if (!alreadyGaveFeedback && currentTimeMillis > sessionEnd
+        if (!mAlreadyGaveFeedback && currentTimeMillis > sessionEnd
                 - Config.FEEDBACK_MILLIS_BEFORE_SESSION_END) {
             mSessionDetailView.showFeedbackLink();
         }
@@ -221,10 +222,12 @@ public class SessionDetailPresenter {
     }
 
     private void onFeedbackLoaded(boolean alreadyGaveSessionFeedback) {
+        mAlreadyGaveFeedback = alreadyGaveSessionFeedback;
         if (alreadyGaveSessionFeedback) {
             mSessionDetailView.hideSessionCardView();
             mSessionDetailView.hideSubmitFeedbackButton();
         }
-        LOGD(TAG, "User " + (alreadyGaveSessionFeedback ? "already gave" : "has not given") + " feedback for session.");
+        LOGD(TAG, "User " + (alreadyGaveSessionFeedback ? "already gave" : "has not given")
+                + " feedback for session.");
     }
 }

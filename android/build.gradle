@@ -70,6 +70,10 @@ android {
         noCompress 'apk'
     }
 
+    testOptions {
+        unitTests.returnDefaultValues = true
+    }
+
     packagingOptions {
         pickFirst 'APK LICENSE.txt'
         pickFirst 'LICENSE.txt'
@@ -100,8 +104,8 @@ dependencies {
         exclude group: "com.google.android.gms"
     }
     /* The two dependencies below are only required while we are using http
-                       Drive appdata. When we start using AppData through GMS,
-                       they should be removed. */
+                           Drive appdata. When we start using AppData through GMS,
+                           they should be removed. */
     compile 'com.google.http-client:google-http-client-gson:1.+'
     compile 'com.google.apis:google-api-services-drive:+'
     compile 'io.reactivex:rxjava:1.0.12'
@@ -111,6 +115,7 @@ dependencies {
     androidTestCompile 'com.android.support.test.espresso:espresso-intents:2.2'
     testCompile 'junit:junit:4.12'
     testCompile 'org.mockito:mockito-all:2.0.2-beta'
+    compile 'com.squareup.dagger:dagger:1.2.2'
 }
 
 configurations.all {

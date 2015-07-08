@@ -1,5 +1,8 @@
 package com.google.samples.apps.iosched.ui.sessiondetail;
 
+import android.content.Context;
+import android.net.Uri;
+
 import com.google.samples.apps.iosched.io.model.Speaker;
 import com.google.samples.apps.iosched.model.TagMetadata;
 import com.google.samples.apps.iosched.ui.SessionColorResolver;
@@ -12,7 +15,12 @@ import org.mockito.runners.MockitoJUnitRunner;
 import java.util.ArrayList;
 import java.util.List;
 
+import rx.Observable;
+import rx.Subscriber;
+import rx.Subscription;
+
 import static org.mockito.Matchers.anyInt;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -31,18 +39,24 @@ public class SessionDetailPresenterTests {
     @Mock
     SessionColorResolver mSessionColorResolver;
 
+    @Mock
+    Context mContext;
+
     @Test
-    public void shouldPresentSessionInfo() {
+    public void shouldPresentSpeakers() {
         //Arrange
         List<Speaker> speakers = new ArrayList<>();
         List<TagMetadata.Tag> tags = new ArrayList<>();
-        SessionDetail sessionDetail = new SessionDetail();
-        mSessionDetailDataLoader = new MockSessionDetailDataLoader(sessionDetail, speakers, tags);
+        SessionDetail.Builder builder = new SessionDetail.Builder();
+        builder.setTagsString("");
+        SessionDetail sessionDetail = new SessionDetail(builder);
+        mSessionDetailDataLoader = new MockSessionDetailDataLoader(sessionDetail, speakers, tags, false);
 
         when(mSessionColorResolver.resolveSessionColor(anyInt())).thenReturn(DUMMY_COLOR);
         SessionDetailPresenter sessionDetailPresenter = new SessionDetailPresenter(mSessionDetailView,
                                                                                    mSessionDetailDataLoader,
-                                                                                   mSessionColorResolver);
+                                                                                   mSessionColorResolver,
+                                                                                   mContext);
 
         //Act
         sessionDetailPresenter.present();
@@ -52,31 +66,82 @@ public class SessionDetailPresenterTests {
         verify(mSessionDetailView).renderSessionTags(tags);
 
         verify(mSessionDetailView).setSessionColor(DUMMY_COLOR);
+        verify(mSessionDetailView).renderSessionTitles(sessionDetail);
+        verify(mSessionDetailView).renderSessionPhoto(null);
 
+        /*
+        This will always be called because testOption.returnDefaultValues has been set to true
+        and because the Presenter uses TextUtils.isEmpty() in its implementation.
+         */
+        verify(mSessionDetailView).enableSocialStreamMenuItem();
+
+        verify(mSessionDetailView).renderSessionTags(tags);
+        verify(mSessionDetailView).setAddScheduleButtonVisible(false);
+        verify(mSessionDetailView).renderRequirements(null);
+
+        verify(mSessionDetailView, never()).hideFeedbackCard();
+        verify(mSessionDetailView, never()).hideSubmitFeedbackButton();
     }
 
     private static class MockSessionDetailDataLoader implements SessionDetailDataLoader {
-        public MockSessionDetailDataLoader(SessionDetail sessionDetail, List<Speaker> speakers, List<TagMetadata.Tag> tags) {
+
+        private final SessionDetail mSessionDetail;
+        private final List<Speaker> mSpeakers;
+        private final List<TagMetadata.Tag> mTags;
+        private boolean mGaveFeedback;
+
+        public MockSessionDetailDataLoader(SessionDetail sessionDetail, List<Speaker> speakers,
+                                           List<TagMetadata.Tag> tags, boolean gaveFeedback) {
+            mSessionDetail = sessionDetail;
+            mSpeakers = speakers;
+            mTags = tags;
+            mGaveFeedback = gaveFeedback;
         }
 
         @Override
-        public void getSpeakersObservable(SpeakersLoadedListener speakersLoadedListener) {
+        public Subscription addSpeakersLoadedSubscriber(Subscriber<List<Speaker>> subscriber) {
+            return Observable.just(mSpeakers).subscribe(subscriber);
+        }
+
+        @Override
+        public Subscription addSessionDetailLoadedSubscriber(Subscriber<SessionDetail> subscriber) {
+            return Observable.just(mSessionDetail).subscribe(subscriber);
+        }
+
+        @Override
+        public Subscription addTagsLoadedSubscriber(Subscriber<List<TagMetadata.Tag>> subscriber) {
+            return Observable.just(mTags).subscribe(subscriber);
+        }
+
+        @Override
+        public Subscription addFeedbackLoadedSubscriber(Subscriber<Boolean> subscriber) {
+            return Observable.just(mGaveFeedback).subscribe(subscriber);
+        }
+
+        @Override
+        public void load() {
 
         }
 
         @Override
-        public void loadSessionDetail(SessionDetailLoadedListener loadedListener) {
+        public String getSessionId() {
+
+            return null;
+        }
+
+        @Override
+        public void reloadFeedback() {
 
         }
 
         @Override
-        public void getTagsObservable(TagsLoadedListener tagsLoadedListener) {
+        public Uri getSessionUri() {
 
+            return null;
         }
+    }
 
-        @Override
-        public void getFeedbackObservable(FeedbackLoadedListener feedbackLoadedListener) {
+    private class TestContainer {
 
-        }
     }
 }

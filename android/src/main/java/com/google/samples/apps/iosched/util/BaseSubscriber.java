@@ -13,7 +13,7 @@ public class BaseSubscriber<T> extends Subscriber<T> {
 
     @Override
     public void onError(Throwable e) {
-
+        throw new IllegalStateException(e);
     }
 
     @Override
