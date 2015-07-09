@@ -1,7 +1,7 @@
 Unit Testable Fork of Google's I/O Android App
 ======================
 
-This project is an attempt to refactor Google's IO app so that it is unit testable.
+This project is an attempt to refactor Google's IO app so that it is unit testable. I say a little bit about why I want to do this [here](http://www.philosophicalhacker.com/2015/05/31/towards-a-unit-testable-fork-of-googles-iosched-app/)
 
 <h2>How to Work with the Source</h2>
 
