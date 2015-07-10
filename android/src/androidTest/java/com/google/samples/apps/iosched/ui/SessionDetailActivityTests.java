@@ -62,7 +62,7 @@ public class SessionDetailActivityTests {
     // Tests
     //----------------------------------------------------------------------------------
     @Test
-    public void testGoingGlobalWithGooglePlaySessionDetailInfoAppears() {
+    public void goingGlobalWithGooglePlaySessionDetailInfoAppears() {
         onView(withId(R.id.session_title)).check(matches(withText("Going global with Google Play")));
         onView(withId(R.id.session_subtitle)).check(matches(withText("Wed, 1:00–1:45 PM in Room 4")));
         onView(withId(R.id.session_abstract)).check(matches(withText(startsWith("Think your app or game has what it takes"))));
@@ -75,7 +75,7 @@ public class SessionDetailActivityTests {
     }
 
     @Test
-    public void testShouldToggleAddScheduleIcon() {
+    public void toggleAddScheduleIconWhenUserPressesToggleSessionButton() {
         onView(withId(R.id.add_schedule_button)).check(matches(not(isChecked())));
         onView(withId(R.id.add_schedule_button)).perform(click());
         onView(isRoot()).perform(pressBack());
@@ -86,31 +86,41 @@ public class SessionDetailActivityTests {
     }
 
     @Test
-    public void shouldLaunchMapOfGoingGlobalWithGooglePlaySessionLocation() {
+    public void launchMapOfGoingGlobalWithGooglePlaySessionLocationWhenUserTapsMapMenuButton() {
         onView(withId(R.id.menu_map_room)).perform(click());
         intended(allOf(hasComponent(MapActivity.class.getName()),
                        hasExtra(BaseMapActivity.EXTRA_ROOM, "room4")));
     }
 
     @Test
-    public void shouldLaunchShareGoingGlobalWithGooglePlaySessionInfo() {
+    public void launchShareGoingGlobalWithGooglePlaySessionInfoWhenUserTapsShareMenuButton() {
         onView(withId(R.id.menu_share)).perform(click());
         String SHARE_TEXT = "Check out 'Going global with Google Play' at #io14 #android  https://www.google.com/events/io/schedule/session/07fd8b0d-80bf-e311-b297-00155d5066d7";
         intended(hasTargetIntent(hasExtra(Intent.EXTRA_TEXT, SHARE_TEXT)));
     }
 
     @Test
-    public void shouldLaunchGooglePlusHashtagSearch() {
+    public void launchGooglePlusHashtagSearchWhenUserTapsSocialStreamMenuButton() {
         onView(withId(R.id.menu_social_stream)).perform(click());
         intended(allOf(hasAction(Intent.ACTION_VIEW), hasData("https://plus.google.com/s/%23io14%20%23android")));
     }
 
     @Test
-    public void shouldLaunchSubmitFeedbackForGoingGlobalWithGooglePlaySession() {
+    public void launchSubmitFeedbackForGoingGlobalWithGooglePlaySessionWhenUserTapsSubmitFeedbackButton() {
         onView(withText("Submit Feedback")).perform(scrollTo(), click());
         intended(allOf(hasAction(Intent.ACTION_VIEW),
                        hasComponent(SessionFeedbackActivity.class.getName()),
                        hasData("content://com.google.samples.apps.iosched/sessions/07fd8b0d-80bf-e311-b297-00155d5066d7")));
+    }
+
+    @Test
+    public void showsWatchNowCardIfSessionIsHappeningNow() {
+        //TODO Refactor code to facilitate this test.
+    }
+
+    @Test
+    public void doesNotShowSubmitFeedbackCardWhenUserReturnsToSessionDetailAfterDismissingCardOnce() {
+        //TODO Write this test.
     }
 
     //----------------------------------------------------------------------------------
