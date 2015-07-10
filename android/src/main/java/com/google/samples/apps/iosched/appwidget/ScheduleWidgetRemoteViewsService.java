@@ -16,11 +16,9 @@
 
 package com.google.samples.apps.iosched.appwidget;
 
-import android.annotation.TargetApi;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
-import android.os.Build;
 import android.text.format.DateUtils;
 import android.util.SparseBooleanArray;
 import android.util.SparseIntArray;
@@ -40,9 +38,14 @@ import com.google.samples.apps.iosched.util.PrefUtils;
 import com.google.samples.apps.iosched.util.TimeUtils;
 import com.google.samples.apps.iosched.util.UIUtils;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.Formatter;
+import java.util.List;
+import java.util.Locale;
 
-import static com.google.samples.apps.iosched.util.LogUtils.*;
+import static com.google.samples.apps.iosched.util.LogUtils.LOGE;
+import static com.google.samples.apps.iosched.util.LogUtils.makeLogTag;
 
 /**
  * This is the service that provides the factory to be bound to the collection service.
@@ -101,7 +104,7 @@ public class ScheduleWidgetRemoteViewsService extends RemoteViewsService {
                 return VIEW_TYPE_NORMAL;
             }
             ScheduleItem item = mScheduleItems.get(position);
-            long now = UIUtils.getCurrentTime(mContext);
+            long now = UIUtils.getCurrentTime();
             if (item.startTime <= now && now <= item.endTime && item.type == ScheduleItem.SESSION) {
                 return VIEW_TYPE_NOW;
             } else {
@@ -160,7 +163,7 @@ public class ScheduleWidgetRemoteViewsService extends RemoteViewsService {
                     return rv;
                 }
 
-                long now = UIUtils.getCurrentTime(mContext);
+                long now = UIUtils.getCurrentTime();
                 boolean showEndTime;
                 if (item.startTime <= now) {
                     // session is happening now!
@@ -306,7 +309,7 @@ public class ScheduleWidgetRemoteViewsService extends RemoteViewsService {
             int position = 0;
             mScheduleItems = new ArrayList<ScheduleItem>();
             for (ScheduleItem item : allScheduleItems) {
-                if (item.endTime <= UIUtils.getCurrentTime(mContext)) {
+                if (item.endTime <= UIUtils.getCurrentTime()) {
                     continue;
                 }
                 mScheduleItems.add(item);

@@ -48,7 +48,10 @@ import com.google.samples.apps.iosched.util.UIUtils;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.google.samples.apps.iosched.util.LogUtils.*;
+import static com.google.samples.apps.iosched.util.LogUtils.LOGD;
+import static com.google.samples.apps.iosched.util.LogUtils.LOGE;
+import static com.google.samples.apps.iosched.util.LogUtils.LOGW;
+import static com.google.samples.apps.iosched.util.LogUtils.makeLogTag;
 
 public class BrowseSessionsActivity extends BaseActivity implements SessionsFragment.Callbacks {
     private static final String TAG = makeLogTag(BrowseSessionsActivity.class);
@@ -152,7 +155,7 @@ public class BrowseSessionsActivity extends BaseActivity implements SessionsFrag
     private void checkShowStaleDataButterBar() {
         final boolean showingFilters = findViewById(R.id.filters_box) != null
                 && findViewById(R.id.filters_box).getVisibility() == View.VISIBLE;
-        final long now = UIUtils.getCurrentTime(this);
+        final long now = UIUtils.getCurrentTime();
         final boolean inSnooze = (now - mLastDataStaleUserActionTime < Config.STALE_DATA_WARNING_SNOOZE);
         final long staleTime = now - PrefUtils.getLastSyncSucceededTime(this);
         final long staleThreshold = (now >= Config.CONFERENCE_START_MILLIS && now
@@ -172,7 +175,7 @@ public class BrowseSessionsActivity extends BaseActivity implements SessionsFrag
                             mButterBar.setVisibility(View.GONE);
                             updateFragContentTopClearance();
                             mLastDataStaleUserActionTime = UIUtils.getCurrentTime(
-                                    BrowseSessionsActivity.this);
+                                                                                 );
                             requestDataRefresh();
                         }
                     }

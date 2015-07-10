@@ -560,8 +560,8 @@ public class SessionsFragment extends Fragment implements
         int nextGroupId = HERO_GROUP_ID + 1000; // to avoid conflict with the special hero group ID
         LOGD(TAG, "Total cursor data items: " + mCursor.getCount());
         int dataIndex = -1;
-        final long now = UIUtils.getCurrentTime(mAppContext);
-        final boolean conferenceEnded = TimeUtils.hasConferenceEnded(mAppContext);
+        final long now = UIUtils.getCurrentTime();
+        final boolean conferenceEnded = TimeUtils.hasConferenceEnded();
         LOGD(TAG, "conferenceEnded=" + conferenceEnded);
 
         final boolean expandedMode = useExpandedMode();
@@ -726,7 +726,7 @@ public class SessionsFragment extends Fragment implements
         // later to decide what to render where
         final boolean hasLivestream = !TextUtils.isEmpty(mCursor.getString(
                 SessionsQuery.LIVESTREAM_URL));
-        final long now = UIUtils.getCurrentTime(context);
+        final long now = UIUtils.getCurrentTime();
         final boolean happeningNow = now >= sessionStart && now <= sessionEnd;
 
         // text that says "LIVE" if session is live, or empty if session is not live
@@ -894,7 +894,7 @@ public class SessionsFragment extends Fragment implements
             return false;
         }
         if (!PrefUtils.hasAnsweredLocalOrRemote(getActivity()) &&
-                !TimeUtils.hasConferenceEnded(getActivity())) {
+                !TimeUtils.hasConferenceEnded()) {
             // show the "in person" vs "remote" card
             setupLocalOrRemoteCard(card);
             return true;
@@ -945,7 +945,7 @@ public class SessionsFragment extends Fragment implements
     }
 
     private void setupWifiOfferCard(final MessageCardView card) {
-        card.setText(getString(TimeUtils.hasConferenceStarted(getActivity()) ?
+        card.setText(getString(TimeUtils.hasConferenceStarted() ?
                 R.string.question_setup_wifi_after_i_o_start :
                 R.string.question_setup_wifi_before_i_o_start));
         card.setButton(0, getString(R.string.no_thanks), CARD_ANSWER_NO,

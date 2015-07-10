@@ -46,7 +46,6 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
-import com.google.samples.apps.iosched.BuildConfig;
 import com.google.samples.apps.iosched.Config;
 import com.google.samples.apps.iosched.R;
 import com.google.samples.apps.iosched.provider.ScheduleContract;
@@ -126,7 +125,7 @@ public class UIUtils {
             Context context, boolean shortFormat) {
 
         // Determine if the session is in the past
-        long currentTimeMillis = UIUtils.getCurrentTime(context);
+        long currentTimeMillis = UIUtils.getCurrentTime();
         boolean conferenceEnded = currentTimeMillis > Config.CONFERENCE_END_MILLIS;
         boolean sessionEnded = currentTimeMillis > intervalEnd;
         if (sessionEnded && !conferenceEnded) {
@@ -212,7 +211,7 @@ public class UIUtils {
     }
 
     public static String getLiveBadgeText(final Context context, long start, long end) {
-        long now = getCurrentTime(context);
+        long now = getCurrentTime();
 
         if (now < start) {
             // Will be live later
@@ -328,21 +327,14 @@ public class UIUtils {
 
     private static final long sAppLoadTime = System.currentTimeMillis();
 
-    public static long getCurrentTime(final Context context) {
-        if (BuildConfig.DEBUG) {
-            return context.getSharedPreferences("mock_data", Context.MODE_PRIVATE)
-                    .getLong("mock_current_time", System.currentTimeMillis())
-                    + System.currentTimeMillis() - sAppLoadTime;
-//            return ParserUtils.parseTime("2012-06-27T09:44:45.000-07:00")
-//                    + System.currentTimeMillis() - sAppLoadTime;
-        } else {
-            return System.currentTimeMillis();
-        }
+    //TODO Remove method entirely. Originally needed because app wasn't unit testable. Once app is, won't need it anymore.
+    public static long getCurrentTime() {
+        return System.currentTimeMillis();
     }
 
     public static boolean shouldShowLiveSessionsOnly(final Context context) {
         return !PrefUtils.isAttendeeAtVenue(context)
-                && getCurrentTime(context) < Config.CONFERENCE_END_MILLIS;
+                && getCurrentTime() < Config.CONFERENCE_END_MILLIS;
     }
 
     /**

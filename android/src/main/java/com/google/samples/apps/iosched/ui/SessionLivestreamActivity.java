@@ -37,11 +37,20 @@ import android.provider.BaseColumns;
 import android.support.v13.app.FragmentPagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.text.TextUtils;
-import android.view.*;
+import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuItem;
+import android.view.View;
+import android.view.ViewGroup;
+import android.view.Window;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
-import android.widget.*;
+import android.widget.CursorAdapter;
+import android.widget.FrameLayout;
+import android.widget.LinearLayout;
 import android.widget.LinearLayout.LayoutParams;
+import android.widget.TextView;
+import android.widget.Toast;
 
 import com.google.android.youtube.player.YouTubeInitializationResult;
 import com.google.android.youtube.player.YouTubePlayer;
@@ -57,7 +66,9 @@ import com.google.samples.apps.iosched.util.UIUtils;
 import java.util.ArrayList;
 import java.util.HashMap;
 
-import static com.google.samples.apps.iosched.util.LogUtils.*;
+import static com.google.samples.apps.iosched.util.LogUtils.LOGD;
+import static com.google.samples.apps.iosched.util.LogUtils.LOGE;
+import static com.google.samples.apps.iosched.util.LogUtils.makeLogTag;
 
 /**
  * An activity that displays the session live stream video which is pulled in from YouTube. The
@@ -329,7 +340,7 @@ public class SessionLivestreamActivity extends BaseActivity implements
                 if (args != null) {
                     futureSessions = args.getBoolean(LOADER_SESSIONS_ARG, false);
                 }
-                final long currentTime = UIUtils.getCurrentTime(this);
+                final long currentTime = UIUtils.getCurrentTime();
                 String selection = Sessions.LIVESTREAM_SELECTION + " and ";
                 String[] selectionArgs;
                 if (!futureSessions) {
@@ -422,7 +433,7 @@ public class SessionLivestreamActivity extends BaseActivity implements
     private void loadSessionSummary(Cursor data) {
         if (data != null && data.moveToFirst()) {
             mCaptionsUrl = data.getString(SessionSummaryQuery.CAPTIONS_URL);
-            final long currentTime = UIUtils.getCurrentTime(this);
+            final long currentTime = UIUtils.getCurrentTime();
             if (currentTime > data.getLong(SessionSummaryQuery.SESSION_END)) {
                 getLoaderManager().restartLoader(SessionsQuery._TOKEN, null, this);
                 return;

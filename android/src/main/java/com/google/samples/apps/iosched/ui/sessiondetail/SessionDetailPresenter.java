@@ -8,8 +8,8 @@ import com.google.samples.apps.iosched.R;
 import com.google.samples.apps.iosched.io.model.Speaker;
 import com.google.samples.apps.iosched.model.TagMetadata;
 import com.google.samples.apps.iosched.ui.SessionColorResolver;
-import com.google.samples.apps.iosched.util.BaseSubscriber;
 import com.google.samples.apps.iosched.util.TimeUtils;
+import com.google.samples.apps.iosched.util.UIUtils;
 import com.google.samples.apps.iosched.util.UserAccount;
 
 import java.util.ArrayList;
@@ -28,7 +28,6 @@ public class SessionDetailPresenter {
 
     //Dependencies
     private SessionDetailView mSessionDetailView;
-    private SessionDetailDataLoader mSessionDetailDataLoader;
     private SessionColorResolver mColorResolver;
     private Context mContext;
     private UserAccount mUserAccount;
@@ -43,54 +42,22 @@ public class SessionDetailPresenter {
     private boolean mInitStarred;
 
     public SessionDetailPresenter(SessionDetailView sessionDetailView,
-                                  SessionDetailDataLoader sessionDetailDataLoader,
                                   SessionColorResolver colorResolver,
                                   Context context) {
         mSessionDetailView = sessionDetailView;
-        mSessionDetailDataLoader = sessionDetailDataLoader;
         mColorResolver = colorResolver;
         mContext = context;
     }
 
-    public void present() {
-        mSessionDetailDataLoader.addSpeakersLoadedSubscriber(new BaseSubscriber<List<Speaker>>() {
-
-            @Override
-            public void onNext(List<Speaker> speakers) {
-                onSpeakersLoaded(speakers);
-            }
-        });
-        mSessionDetailDataLoader.addSessionDetailLoadedSubscriber(
-                new BaseSubscriber<SessionDetail>() {
-                    @Override
-                    public void onNext(SessionDetail sessionDetail) {
-                        onSessionDetailLoaded(sessionDetail);
-                    }
-                });
-        mSessionDetailDataLoader.addTagsLoadedSubscriber(new BaseSubscriber<List<TagMetadata.Tag>>() {
-            @Override
-            public void onNext(List<TagMetadata.Tag> tags) {
-                onTagsLoaded(tags);
-            }
-        });
-        mSessionDetailDataLoader.addFeedbackLoadedSubscriber(new BaseSubscriber<Boolean>() {
-            @Override
-            public void onNext(Boolean alreadyGaveFeedback) {
-                onFeedbackLoaded(alreadyGaveFeedback);
-            }
-        });
-        mSessionDetailDataLoader.load();
-    }
-
     public void updateTimeBasedUi(SessionDetail sessionDetail, boolean dismissedWatchLivestreamCard,
-                                  HashSet<String> sDismissedFeedbackCard) {
+                                  HashSet<String> sDismissedFeedbackCard, String sessionId) {
 
         long currentTimeMillis = System.currentTimeMillis();
 
         if (sessionDetail.isLiveStreamAvailableNow() && !dismissedWatchLivestreamCard) {
             mSessionDetailView.showWatchNowCard();
         } else if (!mAlreadyGaveFeedback && mInitStarred && sessionDetail.canGiveFeedbackNow()
-                && !sDismissedFeedbackCard.contains(mSessionDetailDataLoader.getSessionId())) {
+                && !sDismissedFeedbackCard.contains(sessionId)) {
             // show the "give feedback" card
             mSessionDetailView.showGiveFeedbackCard();
         }
@@ -99,7 +66,7 @@ public class SessionDetailPresenter {
         long sessionStart = sessionDetail.getSessionStart();
         long countdownMillis = sessionStart - currentTimeMillis;
 
-        if (TimeUtils.hasConferenceEnded(mContext)) {
+        if (TimeUtils.hasConferenceEnded()) {
             // no time hint to display
             timeHint = "";
         } else if (currentTimeMillis >= sessionDetail.getSessionEnd()) {
@@ -124,40 +91,17 @@ public class SessionDetailPresenter {
         mSessionDetailView.renderTimeHint(timeHint);
     }
 
-    //----------------------------------------------------------------------------------
-    // Helpers
-    //----------------------------------------------------------------------------------
-    private void onSpeakersLoaded(List<Speaker> speakers) {
+    public void presentSpeakers(List<Speaker> speakers) {
         mSessionDetailView.renderSessionSpeakers(speakers);
     }
 
-    private void onSessionDetailLoaded(SessionDetail sessionDetail) {
+    public void presentSessionDetail(SessionDetail sessionDetail) {
         mSessionDetailLoaded = true;
-        int sessionColor = mColorResolver.resolveSessionColor(sessionDetail.getColor());
-        mSessionDetailView.setSessionColor(sessionColor);
-
-        mSessionDetailView.renderSessionTitles(sessionDetail);
 
         String photoUrl = sessionDetail.getPhotoUrl();
         mSessionDetailView.renderSessionPhoto(photoUrl);
 
-        String hashTag = sessionDetail.getHashtag();
-        if (!TextUtils.isEmpty(hashTag)) {
-            mSessionDetailView.enableSocialStreamMenuItem();
-        }
-
-        mTagsString = sessionDetail.getTagsString();
-        tryRenderTags();
-        // Handle Keynote as a special case, where the user cannot remove it
-        // from the schedule (it is auto added to schedule on sync)
-        boolean isKeynote = sessionDetail.isKeynote();
-        mSessionDetailView.setAddScheduleButtonVisible(mUserAccount.isActive() && !isKeynote);
-
-        final boolean inMySchedule = sessionDetail.isInMySchedule();
-        if (!isKeynote) {
-            mInitStarred = inMySchedule;
-            mSessionDetailView.showStarred(inMySchedule, false);
-        }
+        boolean isKeynote = presentSessionStarred(sessionDetail);
 
         final String sessionAbstract = sessionDetail.getSessionAbstract();
         mSessionDetailView.renderSessionAbstract(sessionAbstract);
@@ -172,6 +116,40 @@ public class SessionDetailPresenter {
         buildLinksSection(sessionDetail);
 
         mSessionDetailView.setEmptyViewVisible(mSessionDetailLoaded && mSpeakersLoaded && !mHasSummaryContent);
+    }
+
+    public void presentSessionTitles(SessionDetail sessionDetail, Context context) {
+        // Format the time this session occupies
+        long sessionStart = sessionDetail.getSessionStart();
+        long sessionEnd = sessionDetail.getSessionEnd();
+        String roomName = sessionDetail.getRoomName();
+        String subtitle = UIUtils.formatSessionSubtitle(
+                sessionStart, sessionEnd, roomName, new StringBuilder(), context);
+        if (sessionDetail.hasLiveStream()) {
+            subtitle += " " + UIUtils.getLiveBadgeText(context, sessionStart, sessionEnd);
+        }
+        mSessionDetailView.setSessionTitle(sessionDetail.getSessionTitle());
+        mSessionDetailView.setSessionSubtitle(subtitle);
+    }
+
+    public boolean presentSessionStarred(SessionDetail sessionDetail) {
+
+        // Handle Keynote as a special case, where the user cannot remove it
+        // from the schedule (it is auto added to schedule on sync)
+        boolean isKeynote = sessionDetail.isKeynote();
+        mSessionDetailView.setAddScheduleButtonVisible(mUserAccount.isActive() && !isKeynote);
+
+        final boolean inMySchedule = sessionDetail.isInMySchedule();
+        if (!isKeynote) {
+            mInitStarred = inMySchedule;
+            mSessionDetailView.showStarred(inMySchedule, false);
+        }
+        return isKeynote;
+    }
+
+    public void presentSessionColor(SessionDetail sessionDetail) {
+        int sessionColor = mColorResolver.resolveSessionColor(sessionDetail.getColor());
+        mSessionDetailView.setSessionColor(sessionColor);
     }
 
     private void buildLinksSection(SessionDetail sessionDetail) {
@@ -195,10 +173,8 @@ public class SessionDetailPresenter {
         }
     }
 
-    private void tryRenderTags() {
-        if (mTagMetadata == null || mTagsString == null) {
-            return;
-        }
+    public void presentTags(TagMetadata tagMetadata, String tagsString) {
+        mTagsString = tagsString;
         String[] tagIds = mTagsString.split(",");
         List<TagMetadata.Tag> tags = new ArrayList<>();
         for (String tagId : tagIds) {
@@ -206,22 +182,22 @@ public class SessionDetailPresenter {
                     Config.Tags.SPECIAL_KEYNOTE.equals(tagId)) {
                 continue;
             }
-
             TagMetadata.Tag tag = mTagMetadata.getTag(tagId);
             if (tag == null) {
                 continue;
             }
-
             tags.add(tag);
         }
-        mSessionDetailView.renderSessionTags(tags);
+        mSessionDetailView.renderSessionTags(tagMetadata, tags);
     }
 
-    private void onTagsLoaded(List<TagMetadata.Tag> tags) {
-        mSessionDetailView.renderSessionTags(tags);
+    public void presentSocialStreamMenuItem(String hashTag) {
+        if (!TextUtils.isEmpty(hashTag)) {
+            mSessionDetailView.enableSocialStreamMenuItem();
+        }
     }
 
-    private void onFeedbackLoaded(boolean alreadyGaveSessionFeedback) {
+    public void presentFeedback(boolean alreadyGaveSessionFeedback) {
         mAlreadyGaveFeedback = alreadyGaveSessionFeedback;
         if (alreadyGaveSessionFeedback) {
             mSessionDetailView.hideSessionCardView();

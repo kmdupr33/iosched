@@ -53,7 +53,7 @@ public class SessionDetailResponder {
                         mSessionDetail = sessionDetail;
                         mSessionDetailPresenter.updateTimeBasedUi(sessionDetail,
                                                                   mDismissedWatchLivestreamCard,
-                                                                  sDismissedFeedbackCard);
+                                                                  sDismissedFeedbackCard, mSessionDetailDataLoader.getSessionId());
                         startUpdatingTimeHint();
                     }
                 });
@@ -126,7 +126,7 @@ public class SessionDetailResponder {
             public void run() {
                 mSessionDetailPresenter.updateTimeBasedUi(mSessionDetail,
                                                           mDismissedWatchLivestreamCard,
-                                                          sDismissedFeedbackCard);
+                                                          sDismissedFeedbackCard, mSessionDetailDataLoader.getSessionId());
                 mHandler.postDelayed(mTimeHintUpdaterRunnable, TIME_HINT_UPDATE_INTERVAL);
             }
         };

@@ -25,7 +25,11 @@ import android.text.TextUtils;
 import com.google.samples.apps.iosched.Config;
 import com.google.samples.apps.iosched.provider.ScheduleContract;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
 
 public class TagMetadata {
 
@@ -34,6 +38,10 @@ public class TagMetadata {
 
     // hash map from tag ID to tag
     HashMap<String, Tag> mTagsById = new HashMap<String, Tag>();
+
+    public TagMetadata() {
+
+    }
 
     public static CursorLoader createCursorLoader(Context context) {
         return new CursorLoader(context, ScheduleContract.Tags.CONTENT_URI, TagsQuery.PROJECTION,

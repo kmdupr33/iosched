@@ -17,7 +17,11 @@
 package com.google.samples.apps.iosched.sync;
 
 import android.accounts.Account;
-import android.content.*;
+import android.content.ContentResolver;
+import android.content.ContentValues;
+import android.content.Context;
+import android.content.Intent;
+import android.content.SyncResult;
 import android.net.ConnectivityManager;
 import android.os.Bundle;
 
@@ -33,7 +37,11 @@ import com.google.samples.apps.iosched.util.UIUtils;
 
 import java.io.IOException;
 
-import static com.google.samples.apps.iosched.util.LogUtils.*;
+import static com.google.samples.apps.iosched.util.LogUtils.LOGD;
+import static com.google.samples.apps.iosched.util.LogUtils.LOGE;
+import static com.google.samples.apps.iosched.util.LogUtils.LOGI;
+import static com.google.samples.apps.iosched.util.LogUtils.LOGW;
+import static com.google.samples.apps.iosched.util.LogUtils.makeLogTag;
 
 /**
  * A helper class for dealing with conference data synchronization.
@@ -113,7 +121,7 @@ public class SyncHelper {
         }
 
         long lastAttemptTime = PrefUtils.getLastSyncAttemptedTime(mContext);
-        long now = UIUtils.getCurrentTime(mContext);
+        long now = UIUtils.getCurrentTime();
         long timeSinceAttempt = now - lastAttemptTime;
         final boolean manualSync = extras.getBoolean(ContentResolver.SYNC_EXTRAS_MANUAL, false);
         final boolean userDataOnly = extras.getBoolean(SyncAdapter.EXTRA_SYNC_USER_DATA_ONLY, false);
@@ -341,8 +349,8 @@ public class SyncHelper {
     }
 
 
-    public static long calculateRecommendedSyncInterval(final Context context) {
-        long now = UIUtils.getCurrentTime(context);
+    public static long calculateRecommendedSyncInterval() {
+        long now = UIUtils.getCurrentTime();
         long aroundConferenceStart = Config.CONFERENCE_START_MILLIS - Config.AUTO_SYNC_AROUND_CONFERENCE_THRESH;
         if (now < aroundConferenceStart) {
             return Config.AUTO_SYNC_INTERVAL_LONG_BEFORE_CONFERENCE;
@@ -355,7 +363,7 @@ public class SyncHelper {
 
     public static void updateSyncInterval(final Context context, final Account account) {
         LOGD(TAG, "Checking sync interval for " + account);
-        long recommended = calculateRecommendedSyncInterval(context);
+        long recommended = calculateRecommendedSyncInterval();
         long current = PrefUtils.getCurSyncInterval(context);
         LOGD(TAG, "Recommended sync interval " + recommended + ", current " + current);
         if (recommended != current) {

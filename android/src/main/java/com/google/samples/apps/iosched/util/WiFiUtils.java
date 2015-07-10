@@ -236,7 +236,7 @@ public class WiFiUtils {
      * (in the overflow menu, for instance).
      */
     public static boolean shouldOfferToSetupWifi(final Context context, boolean actively) {
-        long now = UIUtils.getCurrentTime(context);
+        long now = UIUtils.getCurrentTime();
         if (now < Config.WIFI_SETUP_OFFER_START) {
             // too early to offer
             return false;

@@ -7,6 +7,7 @@ import com.google.samples.apps.iosched.io.model.Speaker;
 import com.google.samples.apps.iosched.model.TagMetadata;
 import com.google.samples.apps.iosched.ui.SessionColorResolver;
 
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -19,8 +20,7 @@ import rx.Observable;
 import rx.Subscriber;
 import rx.Subscription;
 
-import static org.mockito.Matchers.anyInt;
-import static org.mockito.Mockito.never;
+import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -41,46 +41,98 @@ public class SessionDetailPresenterTests {
 
     @Mock
     Context mContext;
+    private SessionDetailPresenter mSessionDetailPresenter;
+
+    @Before
+    public void initPresenterWithMocks() {
+        mSessionDetailPresenter = new SessionDetailPresenter(mSessionDetailView,
+                                                             mSessionColorResolver,
+                                                             mContext);
+    }
 
     @Test
     public void shouldPresentSpeakers() {
         //Arrange
         List<Speaker> speakers = new ArrayList<>();
-        List<TagMetadata.Tag> tags = new ArrayList<>();
-        SessionDetail.Builder builder = new SessionDetail.Builder();
-        builder.setTagsString("");
-        SessionDetail sessionDetail = new SessionDetail(builder);
-        mSessionDetailDataLoader = new MockSessionDetailDataLoader(sessionDetail, speakers, tags, false);
-
-        when(mSessionColorResolver.resolveSessionColor(anyInt())).thenReturn(DUMMY_COLOR);
-        SessionDetailPresenter sessionDetailPresenter = new SessionDetailPresenter(mSessionDetailView,
-                                                                                   mSessionDetailDataLoader,
-                                                                                   mSessionColorResolver,
-                                                                                   mContext);
 
         //Act
-        sessionDetailPresenter.present();
+        mSessionDetailPresenter.presentSpeakers(speakers);
 
         //Assert
         verify(mSessionDetailView).renderSessionSpeakers(speakers);
-        verify(mSessionDetailView).renderSessionTags(tags);
+    }
 
+    @Test
+    public void shouldPresentSessionColor() {
+        SessionDetail sessionDetail = new SessionDetail(new SessionDetail.Builder());
+
+        mSessionDetailPresenter.presentSessionColor(sessionDetail);
+
+        when(mSessionColorResolver.resolveSessionColor(sessionDetail.getColor())).thenReturn(DUMMY_COLOR);
+        verify(mSessionColorResolver.resolveSessionColor(sessionDetail.getColor()));
         verify(mSessionDetailView).setSessionColor(DUMMY_COLOR);
-        verify(mSessionDetailView).renderSessionTitles(sessionDetail);
-        verify(mSessionDetailView).renderSessionPhoto(null);
+    }
 
-        /*
-        This will always be called because testOption.returnDefaultValues has been set to true
-        and because the Presenter uses TextUtils.isEmpty() in its implementation.
-         */
-        verify(mSessionDetailView).enableSocialStreamMenuItem();
+    @Test
+    public void shouldPresentSessionTitles() {
+        SessionDetail.Builder builder = new SessionDetail.Builder();
+        String sessionTitle = "Going global with Google Play";
+        SessionDetail sessionDetail = new SessionDetail(builder);
 
-        verify(mSessionDetailView).renderSessionTags(tags);
+        mSessionDetailPresenter.presentSessionTitles(sessionDetail, mContext);
+
+        verify(mSessionDetailView).setSessionTitle(sessionTitle);
+        //TODO Test that subtitle creation logic works elsewhere
+        verify(mSessionDetailView).setSessionSubtitle(anyString());
+    }
+
+    @Test
+    public void shouldHideAddScheduleButtonBecauseSessionIsKeynote() {
+        SessionDetail.Builder builder = new SessionDetail.Builder();
+        builder.setTagsString("keynote");
+        SessionDetail sessionDetail = new SessionDetail(builder);
+        mSessionDetailPresenter.presentSessionStarred(sessionDetail);
+
         verify(mSessionDetailView).setAddScheduleButtonVisible(false);
-        verify(mSessionDetailView).renderRequirements(null);
+    }
 
-        verify(mSessionDetailView, never()).hideFeedbackCard();
-        verify(mSessionDetailView, never()).hideSubmitFeedbackButton();
+    @Test
+    public void shouldHideAddScheduleButtonBecauseUserAccountIsNotActive() {
+        //Arrange
+        SessionDetail sessionDetail = new SessionDetail(new SessionDetail.Builder());
+        //Act
+        mSessionDetailPresenter.presentSessionStarred(sessionDetail);
+        //Assert
+        verify(mSessionDetailView).setAddScheduleButtonVisible(false);
+    }
+
+    @Test
+    public void shouldShowSessionStarred() {
+        //Arrange
+        SessionDetail.Builder builder = new SessionDetail.Builder();
+        builder.setInMySchedule(true);
+        SessionDetail sessionDetail = new SessionDetail(builder);
+        //Act
+        mSessionDetailPresenter.presentSessionStarred(sessionDetail);
+        //Assert
+        verify(mSessionDetailView).showStarred(true, false);
+    }
+
+    @Test
+    public void shouldEnableSocialStreamMenuItem() {
+        //Act
+        mSessionDetailPresenter.presentSocialStreamMenuItem("#nonEmptyHashTag");
+
+        verify(mSessionDetailView).enableSocialStreamMenuItem();
+    }
+
+    @Test
+    public void shouldPresentTags() {
+        TagMetadata tagMetadata = new TagMetadata();
+
+        mSessionDetailPresenter.presentTags(tagMetadata, "#android #is #awesome");
+        List<TagMetadata.Tag> tags = new ArrayList<>(3);
+//        verify(mSessionDetailView).renderSessionTags(tagMetadata, );
     }
 
     private static class MockSessionDetailDataLoader implements SessionDetailDataLoader {

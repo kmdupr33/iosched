@@ -19,6 +19,7 @@ package com.google.samples.apps.iosched.util;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
+
 import com.google.samples.apps.iosched.Config;
 
 import java.util.TimeZone;
@@ -246,7 +247,7 @@ public class PrefUtils  {
 
     public static void markSyncAttemptedNow(final Context context) {
         SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(context);
-        sp.edit().putLong(PREF_LAST_SYNC_ATTEMPTED, UIUtils.getCurrentTime(context)).commit();
+        sp.edit().putLong(PREF_LAST_SYNC_ATTEMPTED, UIUtils.getCurrentTime()).commit();
     }
 
     public static long getLastSyncSucceededTime(final Context context) {
@@ -256,7 +257,7 @@ public class PrefUtils  {
 
     public static void markSyncSucceededNow(final Context context) {
         SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(context);
-        sp.edit().putLong(PREF_LAST_SYNC_SUCCEEDED, UIUtils.getCurrentTime(context)).commit();
+        sp.edit().putLong(PREF_LAST_SYNC_SUCCEEDED, UIUtils.getCurrentTime()).commit();
     }
 
     /**
@@ -268,7 +269,7 @@ public class PrefUtils  {
     public static boolean shouldOfferIOExtended(final Context context, boolean actively) {
         boolean isRemote = !PrefUtils.isAttendeeAtVenue(context);
         boolean hasNotDismissed = !PrefUtils.hasDismissedIOExtendedCard(context);
-        boolean conferenceGoingOn = !TimeUtils.hasConferenceEnded(context);
+        boolean conferenceGoingOn = !TimeUtils.hasConferenceEnded();
 
         if (actively) {
             return isRemote && hasNotDismissed && conferenceGoingOn;

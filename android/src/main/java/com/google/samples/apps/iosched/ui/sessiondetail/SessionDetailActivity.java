@@ -86,12 +86,6 @@ public class SessionDetailActivity extends BaseActivity implements
         ObservableScrollView.Callbacks, SessionDetailView {
     private static final String TAG = LogUtils.makeLogTag(SessionDetailActivity.class);
 
-    private static final int[] SECTION_HEADER_RES_IDS = {
-            R.id.session_links_header,
-            R.id.session_speakers_header,
-            R.id.session_requirements_header,
-            R.id.related_videos_header,
-    };
     private static final float PHOTO_ASPECT_RATIO = 1.7777777f;
 
     public static final String TRANSITION_NAME_PHOTO = "photo";
@@ -409,7 +403,7 @@ public class SessionDetailActivity extends BaseActivity implements
     public void onStop() {
         super.onStop();
         if (mInitStarred != mStarred) {
-            if (UIUtils.getCurrentTime(this) < mSessionStart) {
+            if (UIUtils.getCurrentTime() < mSessionStart) {
                 // Update Calendar event through the Calendar API on Android 4.0 or new versions.
                 Intent intent = null;
                 if (mStarred) {
@@ -446,7 +440,7 @@ public class SessionDetailActivity extends BaseActivity implements
         Intent scheduleIntent;
 
         // Schedule session notification
-        if (UIUtils.getCurrentTime(this) < mSessionStart) {
+        if (UIUtils.getCurrentTime() < mSessionStart) {
             LOGD(TAG, "Scheduling notification about session start.");
             scheduleIntent = new Intent(
                     SessionAlarmService.ACTION_SCHEDULE_STARRED_BLOCK,
@@ -459,7 +453,7 @@ public class SessionDetailActivity extends BaseActivity implements
         }
 
         // Schedule feedback notification
-        if (UIUtils.getCurrentTime(this) < mSessionEnd) {
+        if (UIUtils.getCurrentTime() < mSessionEnd) {
             LOGD(TAG, "Scheduling notification about session feedback.");
             scheduleIntent = new Intent(
                     SessionAlarmService.ACTION_SCHEDULE_FEEDBACK_NOTIFICATION,
@@ -964,7 +958,7 @@ public class SessionDetailActivity extends BaseActivity implements
     }
 
     @Override
-    public void renderSessionTags(List<TagMetadata.Tag> loadedSessionTags) {
+    public void renderSessionTags(TagMetadata tagMetadata, List<TagMetadata.Tag> loadedSessionTags) {
         if (loadedSessionTags.size() == 0) {
             mTagsContainer.setVisibility(View.GONE);
             return;
@@ -975,6 +969,12 @@ public class SessionDetailActivity extends BaseActivity implements
     public void setSessionColor(int sessionColor) {
         mHeaderBox.setBackgroundColor(sessionColor);
         getLUtils().setStatusBarColor(UIUtils.scaleColor(sessionColor, 0.8f, false));
+        final int[] SECTION_HEADER_RES_IDS = {
+                R.id.session_links_header,
+                R.id.session_speakers_header,
+                R.id.session_requirements_header,
+                R.id.related_videos_header,
+        };
         for (int resId : SECTION_HEADER_RES_IDS) {
             ((TextView) findViewById(resId)).setTextColor(sessionColor);
         }
@@ -988,20 +988,13 @@ public class SessionDetailActivity extends BaseActivity implements
     }
 
     @Override
-    public void renderSessionTitles(SessionDetail sessionDetail) {
-        // Format the time this session occupies
-        long sessionStart = sessionDetail.getSessionStart();
-        long sessionEnd = sessionDetail.getSessionEnd();
-        String roomName = sessionDetail.getRoomName();
-        String subtitle = UIUtils.formatSessionSubtitle(
-                sessionStart, sessionEnd, roomName, new StringBuilder(), this);
-        if (sessionDetail.hasLiveStream()) {
-            subtitle += " " + UIUtils.getLiveBadgeText(this, sessionStart, sessionEnd);
-        }
-
+    public void setSessionTitle(String title) {
         mTitle.setText(mTitleString);
-        mSubtitle.setText(subtitle);
+    }
 
+    @Override
+    public void setSessionSubtitle(String subtitle) {
+        mSubtitle.setText(subtitle);
     }
 
     @Override

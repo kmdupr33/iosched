@@ -11,13 +11,11 @@ import java.util.List;
 public interface SessionDetailView {
     void renderSessionSpeakers(List<Speaker> speakers);
 
-    void renderSessionTags(List<TagMetadata.Tag> loadedSessionTags);
+    void renderSessionTags(TagMetadata tagMetadata, List<TagMetadata.Tag> loadedSessionTags);
 
     void setSessionColor(int sessionColor);
 
     void setEmptyViewVisible(boolean showEmptyView);
-
-    void renderSessionTitles(SessionDetail sessionDetail);
 
     void renderSessionPhoto(String photoUrl);
 
@@ -58,4 +56,8 @@ public interface SessionDetailView {
     void hideWatchNowView();
 
     void hideFeedbackCard();
+
+    void setSessionTitle(String title);
+
+    void setSessionSubtitle(String subtitle);
 }

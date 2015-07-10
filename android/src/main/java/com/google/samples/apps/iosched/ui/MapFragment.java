@@ -615,7 +615,7 @@ public class MapFragment extends com.google.android.gms.maps.MapFragment impleme
             LOGD(TAG, "Clicked on Moscone marker, return to initial display.");
             centerOnMoscone(true);
         } else if (TYPE_SESSION.equals(snippet)) {
-            final long time = UIUtils.getCurrentTime(getActivity());
+            final long time = UIUtils.getCurrentTime();
             Uri uri = ScheduleContract.Sessions.buildSessionsInRoomAfterUri(title, time);
             final String order = ScheduleContract.Sessions.SESSION_START + " ASC";
 
@@ -700,7 +700,7 @@ public class MapFragment extends com.google.android.gms.maps.MapFragment impleme
                     return;
                 }
 
-                final long time = UIUtils.getCurrentTime(getActivity());
+                final long time = UIUtils.getCurrentTime();
 
                 switch (token) {
                     case SessionAfterQuery._TOKEN: {
@@ -746,7 +746,7 @@ public class MapFragment extends com.google.android.gms.maps.MapFragment impleme
                             mBuffer.setLength(0);
 
                             boolean showWeekday = !DateUtils.isToday(blockStart)
-                                    && !UIUtils.isSameDayDisplay(UIUtils.getCurrentTime(getActivity()), blockStart, getActivity());
+                                    && !UIUtils.isSameDayDisplay(UIUtils.getCurrentTime(), blockStart, getActivity());
 
                             nextTime = DateUtils.formatDateRange(getActivity(), mFormatter,
                                     nextStart, nextStart,

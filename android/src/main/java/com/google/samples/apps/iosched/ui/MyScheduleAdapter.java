@@ -29,18 +29,29 @@ import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.*;
+import android.widget.AbsListView;
+import android.widget.FrameLayout;
+import android.widget.ImageButton;
+import android.widget.ImageView;
+import android.widget.ListAdapter;
+import android.widget.TextView;
 
 import com.google.samples.apps.iosched.Config;
 import com.google.samples.apps.iosched.R;
 import com.google.samples.apps.iosched.model.ScheduleItem;
 import com.google.samples.apps.iosched.provider.ScheduleContract;
-import com.google.samples.apps.iosched.util.*;
+import com.google.samples.apps.iosched.util.AnalyticsManager;
+import com.google.samples.apps.iosched.util.ImageLoader;
+import com.google.samples.apps.iosched.util.LUtils;
+import com.google.samples.apps.iosched.util.TimeUtils;
+import com.google.samples.apps.iosched.util.UIUtils;
 
 import java.util.ArrayList;
 import java.util.Date;
 
-import static com.google.samples.apps.iosched.util.LogUtils.*;
+import static com.google.samples.apps.iosched.util.LogUtils.LOGD;
+import static com.google.samples.apps.iosched.util.LogUtils.LOGE;
+import static com.google.samples.apps.iosched.util.LogUtils.makeLogTag;
 
 /**
  * Adapter that produces views to render (one day of) the "My Schedule" screen.
@@ -208,7 +219,7 @@ public class MyScheduleAdapter implements ListAdapter, AbsListView.RecyclerListe
         int heightBreak = ViewGroup.LayoutParams.WRAP_CONTENT;
         int heightPast = res.getDimensionPixelSize(R.dimen.my_schedule_item_height_past);
 
-        long now = UIUtils.getCurrentTime(view.getContext());
+        long now = UIUtils.getCurrentTime();
         boolean showEndTime = false;
         boolean isBlockNow = false;
         if (item.endTime <= now) {
@@ -390,7 +401,7 @@ public class MyScheduleAdapter implements ListAdapter, AbsListView.RecyclerListe
             return VIEW_TYPE_NORMAL;
         }
         ScheduleItem item = mItems.get(position);
-        long now = UIUtils.getCurrentTime(mContext);
+        long now = UIUtils.getCurrentTime();
         if (item.startTime <= now && now <= item.endTime && item.type == ScheduleItem.SESSION) {
             return VIEW_TYPE_NOW;
         } else if (item.endTime <= now && now < Config.CONFERENCE_END_MILLIS) {

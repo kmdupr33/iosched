@@ -16,10 +16,10 @@
 
 package com.google.samples.apps.iosched.ui;
 
+import android.app.AlertDialog;
 import android.app.Fragment;
 import android.app.FragmentManager;
 import android.app.ListFragment;
-import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -50,10 +50,16 @@ import com.google.samples.apps.iosched.model.ScheduleHelper;
 import com.google.samples.apps.iosched.provider.ScheduleContract;
 import com.google.samples.apps.iosched.ui.widget.MyScheduleView;
 import com.google.samples.apps.iosched.ui.widget.SlidingTabLayout;
-import com.google.samples.apps.iosched.util.*;
+import com.google.samples.apps.iosched.util.AnalyticsManager;
+import com.google.samples.apps.iosched.util.PrefUtils;
+import com.google.samples.apps.iosched.util.ThrottledContentObserver;
+import com.google.samples.apps.iosched.util.TimeUtils;
+import com.google.samples.apps.iosched.util.UIUtils;
 
 import java.lang.ref.WeakReference;
-import java.util.*;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.Set;
 
 import static com.google.samples.apps.iosched.util.LogUtils.LOGD;
 import static com.google.samples.apps.iosched.util.LogUtils.makeLogTag;
@@ -208,7 +214,7 @@ public class MyScheduleActivity extends BaseActivity implements MyScheduleFragme
     protected void onPostCreate(Bundle savedInstanceState) {
         super.onPostCreate(savedInstanceState);
         if (mViewPager != null) {
-            long now = UIUtils.getCurrentTime(this);
+            long now = UIUtils.getCurrentTime();
             for (int i = 0; i < Config.CONFERENCE_DAYS.length; i++) {
                 if (now >= Config.CONFERENCE_DAYS[i][0] && now <= Config.CONFERENCE_DAYS[i][1]) {
                     mViewPager.setCurrentItem(i);
@@ -514,7 +520,7 @@ public class MyScheduleActivity extends BaseActivity implements MyScheduleFragme
                 return;
             }
             LOGD(TAG, "Running MySchedule UI updater (now=" +
-                    new Date(UIUtils.getCurrentTime(activity)) + ")");
+                    new Date(UIUtils.getCurrentTime()) + ")");
             if (activity.mScheduleAdapters != null
                     && activity.mScheduleAdapters.length > today
                     && activity.mScheduleAdapters[today] != null) {

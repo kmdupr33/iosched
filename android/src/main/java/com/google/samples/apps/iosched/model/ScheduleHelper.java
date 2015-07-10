@@ -114,7 +114,7 @@ public class ScheduleHelper {
         cursor.close();
 
         // remove free blocks that have no available sessions or that are in the past
-        long now = UIUtils.getCurrentTime(mContext);
+        long now = UIUtils.getCurrentTime();
         Iterator<ScheduleItem> it = items.iterator();
         while (it.hasNext()) {
             ScheduleItem i = it.next();

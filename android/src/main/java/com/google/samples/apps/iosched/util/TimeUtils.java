@@ -26,7 +26,10 @@ import com.google.samples.apps.iosched.R;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.Date;
+import java.util.Formatter;
+import java.util.Locale;
+import java.util.TimeZone;
 
 public class TimeUtils {
     private static final int SECOND = 1000;
@@ -34,14 +37,14 @@ public class TimeUtils {
     private static final int HOUR = 60 * MINUTE;
     private static final int DAY = 24 * HOUR;
 
-    public static String getTimeAgo(long time, Context ctx) {
+    public static String getTimeAgo(long time) {
         // TODO: use DateUtils methods instead
         if (time < 1000000000000L) {
             // if timestamp given in seconds, convert to millis
             time *= 1000;
         }
 
-        long now = UIUtils.getCurrentTime(ctx);
+        long now = UIUtils.getCurrentTime();
         if (time > now || time <= 0) {
             return null;
         }
@@ -124,18 +127,18 @@ public class TimeUtils {
         return format.format(time);
     }
 
-    public static boolean hasConferenceStarted(final Context context) {
-        long now = UIUtils.getCurrentTime(context);
+    public static boolean hasConferenceStarted() {
+        long now = UIUtils.getCurrentTime();
         return now >= Config.CONFERENCE_START_MILLIS;
     }
 
-    public static boolean hasConferenceEnded(final Context context) {
-        long now = UIUtils.getCurrentTime(context);
+    public static boolean hasConferenceEnded() {
+        long now = UIUtils.getCurrentTime();
         return now > Config.CONFERENCE_END_MILLIS;
     }
 
-    public static boolean isConferenceInProgress(final Context context) {
-        long now = UIUtils.getCurrentTime(context);
+    public static boolean isConferenceInProgress() {
+        long now = UIUtils.getCurrentTime();
         return now >= Config.CONFERENCE_START_MILLIS && now <= Config.CONFERENCE_END_MILLIS;
     }
 
@@ -144,7 +147,7 @@ public class TimeUtils {
      */
     public static String formatHumanFriendlyShortDate(final Context context, long timestamp) {
         long localTimestamp, localTime;
-        long now = UIUtils.getCurrentTime(context);
+        long now = UIUtils.getCurrentTime();
 
         TimeZone tz = PrefUtils.getDisplayTimeZone(context);
         localTimestamp = timestamp + tz.getOffset(timestamp);
