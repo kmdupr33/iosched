@@ -31,8 +31,6 @@ public interface SessionDetailView {
 
     void renderSessionAbstract(String sessionAbstract);
 
-    void updatePlusOneButton(String sessionUrl, boolean isKeynote);
-
     void renderRequirements(String sessionRequirements);
 
     void hideRelatedVideos();
@@ -60,4 +58,8 @@ public interface SessionDetailView {
     void setSessionTitle(String title);
 
     void setSessionSubtitle(String subtitle);
+
+    void showPlusOneButton(String sessionUrl);
+
+    void hidePlusOneButton();
 }

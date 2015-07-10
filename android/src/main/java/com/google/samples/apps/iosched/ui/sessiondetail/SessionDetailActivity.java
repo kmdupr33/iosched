@@ -620,13 +620,6 @@ public class SessionDetailActivity extends BaseActivity implements
         if (mPlusOneButton == null) {
             return;
         }
-
-        if (!TextUtils.isEmpty(sessionUrl) && !isKeynote) {
-            mPlusOneButton.initialize(sessionUrl, 0);
-            mPlusOneButton.setVisibility(View.VISIBLE);
-        } else {
-            mPlusOneButton.setVisibility(View.GONE);
-        }
     }
 
     @Override
@@ -995,6 +988,17 @@ public class SessionDetailActivity extends BaseActivity implements
     @Override
     public void setSessionSubtitle(String subtitle) {
         mSubtitle.setText(subtitle);
+    }
+
+    @Override
+    public void showPlusOneButton(String sessionUrl) {
+        mPlusOneButton.initialize(sessionUrl, 0);
+        mPlusOneButton.setVisibility(View.VISIBLE);
+    }
+
+    @Override
+    public void hidePlusOneButton() {
+        mPlusOneButton.setVisibility(View.GONE);
     }
 
     @Override

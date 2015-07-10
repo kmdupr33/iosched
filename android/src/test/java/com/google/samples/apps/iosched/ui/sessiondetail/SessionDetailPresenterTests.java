@@ -23,6 +23,7 @@ import rx.Subscription;
 
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -150,6 +151,24 @@ public class SessionDetailPresenterTests {
                                                    tagMetadata.getTag(""));
 
         verify(mSessionDetailView).renderSessionTags(tagMetadata, tags);
+    }
+
+    @Test
+    public void hidesFeedbackRequestingUiIfUserHasAlreadyGivenFeedback() {
+        //Act
+        mSessionDetailPresenter.presentFeedback(true);
+        //Assert
+        verify(mSessionDetailView).hideFeedbackCard();
+        verify(mSessionDetailView).hideSubmitFeedbackButton();
+    }
+
+    @Test
+    public void doesNotHideFeedbackRequestUiIfUserHasNotAlreadyGivenFeedback() {
+        //Act
+        mSessionDetailPresenter.presentFeedback(false);
+        //Assert
+        verify(mSessionDetailView, never()).hideFeedbackCard();
+        verify(mSessionDetailView, never()).hideSubmitFeedbackButton();
     }
 
     private static class MockSessionDetailDataLoader implements SessionDetailDataLoader {

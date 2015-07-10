@@ -95,21 +95,28 @@ public class SessionDetailPresenter {
         mSessionDetailView.renderSessionSpeakers(speakers);
     }
 
+    public void presentSessionPhoto(String photoUrl) {
+        mSessionDetailView.renderSessionPhoto(photoUrl);
+    }
+
+    public void presentSessionAbstract(String sessionAbstract) {
+        mSessionDetailView.renderSessionAbstract(sessionAbstract);
+    }
+
+    public void presentPlusOneButton(String sessionUrl, boolean isKeynote) {
+        if (!TextUtils.isEmpty(sessionUrl) && !isKeynote) {
+            mSessionDetailView.showPlusOneButton(sessionUrl);
+        } else {
+            mSessionDetailView.hidePlusOneButton();
+        }
+    }
+
+    public void presentRequirements(String requirements) {
+        mSessionDetailView.renderRequirements(requirements);
+    }
+
     public void presentSessionDetail(SessionDetail sessionDetail) {
         mSessionDetailLoaded = true;
-
-        String photoUrl = sessionDetail.getPhotoUrl();
-        mSessionDetailView.renderSessionPhoto(photoUrl);
-
-        boolean isKeynote = presentSessionStarred(sessionDetail);
-
-        final String sessionAbstract = sessionDetail.getSessionAbstract();
-        mSessionDetailView.renderSessionAbstract(sessionAbstract);
-
-        mSessionDetailView.updatePlusOneButton(sessionDetail.getSessionUrl(), isKeynote);
-
-        final String sessionRequirements = sessionDetail.getRequirements();
-        mSessionDetailView.renderRequirements(sessionRequirements);
 
         mSessionDetailView.hideRelatedVideos();
 
