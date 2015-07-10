@@ -182,7 +182,7 @@ public class SessionDetailPresenter {
                     Config.Tags.SPECIAL_KEYNOTE.equals(tagId)) {
                 continue;
             }
-            TagMetadata.Tag tag = mTagMetadata.getTag(tagId);
+            TagMetadata.Tag tag = tagMetadata.getTag(tagId);
             if (tag == null) {
                 continue;
             }

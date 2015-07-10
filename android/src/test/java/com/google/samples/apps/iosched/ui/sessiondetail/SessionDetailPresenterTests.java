@@ -14,6 +14,7 @@ import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import rx.Observable;
@@ -21,6 +22,7 @@ import rx.Subscriber;
 import rx.Subscription;
 
 import static org.mockito.Matchers.anyString;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -128,12 +130,15 @@ public class SessionDetailPresenterTests {
 
     @Test
     public void showsTagsConvertedFromTagString() {
-        TagMetadata tagMetadata = new TagMetadata();
+        TagMetadata tagMetadata = mock(TagMetadata.class);
+        TagMetadata.Tag tag = new TagMetadata.Tag("", "", "", 0, "", 0);
+        when(tagMetadata.getTag(anyString())).thenReturn(tag);
+        mSessionDetailPresenter.presentTags(tagMetadata, "android, is, awesome");
+        List<TagMetadata.Tag> tags = Arrays.asList(tagMetadata.getTag(""),
+                                                   tagMetadata.getTag(""),
+                                                   tagMetadata.getTag(""));
 
-        mSessionDetailPresenter.presentTags(tagMetadata, "#android #is #awesome");
-        List<TagMetadata.Tag> tags = new ArrayList<>(3);
-
-//        verify(mSessionDetailView).renderSessionTags(tagMetadata, );
+        verify(mSessionDetailView).renderSessionTags(tagMetadata, tags);
     }
 
     private static class MockSessionDetailDataLoader implements SessionDetailDataLoader {

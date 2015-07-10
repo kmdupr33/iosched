@@ -39,10 +39,6 @@ public class TagMetadata {
     // hash map from tag ID to tag
     HashMap<String, Tag> mTagsById = new HashMap<String, Tag>();
 
-    public TagMetadata() {
-
-    }
-
     public static CursorLoader createCursorLoader(Context context) {
         return new CursorLoader(context, ScheduleContract.Tags.CONTENT_URI, TagsQuery.PROJECTION,
                 null, null, null);
