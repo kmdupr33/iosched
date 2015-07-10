@@ -51,7 +51,7 @@ public class SessionDetailPresenterTests {
     }
 
     @Test
-    public void shouldPresentSpeakers() {
+    public void rendersSessionViewSpeakers() {
         //Arrange
         List<Speaker> speakers = new ArrayList<>();
 
@@ -63,7 +63,7 @@ public class SessionDetailPresenterTests {
     }
 
     @Test
-    public void shouldPresentSessionColor() {
+    public void setsSessionViewColorWithResolvedColor() {
         SessionDetail sessionDetail = new SessionDetail(new SessionDetail.Builder());
 
         mSessionDetailPresenter.presentSessionColor(sessionDetail);
@@ -74,7 +74,7 @@ public class SessionDetailPresenterTests {
     }
 
     @Test
-    public void shouldPresentSessionTitles() {
+    public void setsSessionViewTitleAndSubtitle() {
         SessionDetail.Builder builder = new SessionDetail.Builder();
         String sessionTitle = "Going global with Google Play";
         SessionDetail sessionDetail = new SessionDetail(builder);
@@ -87,7 +87,7 @@ public class SessionDetailPresenterTests {
     }
 
     @Test
-    public void shouldHideAddScheduleButtonBecauseSessionIsKeynote() {
+    public void hidesAddScheduleButtonBecauseSessionIsKeynote() {
         SessionDetail.Builder builder = new SessionDetail.Builder();
         builder.setTagsString("keynote");
         SessionDetail sessionDetail = new SessionDetail(builder);
@@ -97,7 +97,7 @@ public class SessionDetailPresenterTests {
     }
 
     @Test
-    public void shouldHideAddScheduleButtonBecauseUserAccountIsNotActive() {
+    public void hidesAddScheduleButtonBecauseUserAccountIsNotActive() {
         //Arrange
         SessionDetail sessionDetail = new SessionDetail(new SessionDetail.Builder());
         //Act
@@ -107,7 +107,7 @@ public class SessionDetailPresenterTests {
     }
 
     @Test
-    public void shouldShowSessionStarred() {
+    public void showSessionAsStarredWhenSessionIsInUsersSchedule() {
         //Arrange
         SessionDetail.Builder builder = new SessionDetail.Builder();
         builder.setInMySchedule(true);
@@ -119,7 +119,7 @@ public class SessionDetailPresenterTests {
     }
 
     @Test
-    public void shouldEnableSocialStreamMenuItem() {
+    public void enablesSocialStreamMenuItemWhenSessionHashtagIsNotEmpty() {
         //Act
         mSessionDetailPresenter.presentSocialStreamMenuItem("#nonEmptyHashTag");
 
@@ -127,11 +127,12 @@ public class SessionDetailPresenterTests {
     }
 
     @Test
-    public void shouldPresentTags() {
+    public void showsTagsConvertedFromTagString() {
         TagMetadata tagMetadata = new TagMetadata();
 
         mSessionDetailPresenter.presentTags(tagMetadata, "#android #is #awesome");
         List<TagMetadata.Tag> tags = new ArrayList<>(3);
+
 //        verify(mSessionDetailView).renderSessionTags(tagMetadata, );
     }
 
