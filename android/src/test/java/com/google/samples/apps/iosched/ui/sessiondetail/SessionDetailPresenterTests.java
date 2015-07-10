@@ -131,7 +131,7 @@ public class SessionDetailPresenterTests {
         mSessionDetailPresenter.presentSocialStreamMenuItem("");
 
         /*
-        This method uses TextUtils.isEmpty() to verify whether the string passed in is empty. Because
+        SessionDetailPresenter.presentSocialStreamMenuItem() method uses TextUtils.isEmpty() to verify whether the string passed in is empty. Because
         we've set returnDefaultValues to true in the test options in the gradle build file, TextUtils.isEmpty()
         will always return false, so we can't actually test this method. This is a limitation of unit
         testing support on Android, and there doesn't seem to be much we can do about it.
