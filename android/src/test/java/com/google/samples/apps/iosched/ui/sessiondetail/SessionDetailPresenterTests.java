@@ -31,18 +31,15 @@ import static org.mockito.Mockito.when;
  */
 @RunWith(MockitoJUnitRunner.class)
 public class SessionDetailPresenterTests {
-
-    private static final int DUMMY_COLOR = -1;
     @Mock
     SessionDetailView mSessionDetailView;
-
-    SessionDetailDataLoader mSessionDetailDataLoader;
 
     @Mock
     SessionColorResolver mSessionColorResolver;
 
     @Mock
     Context mContext;
+    private static final int DUMMY_COLOR = -1;
     private SessionDetailPresenter mSessionDetailPresenter;
 
     @Before
@@ -126,6 +123,20 @@ public class SessionDetailPresenterTests {
         mSessionDetailPresenter.presentSocialStreamMenuItem("#nonEmptyHashTag");
 
         verify(mSessionDetailView).enableSocialStreamMenuItem();
+    }
+
+    @Test
+    public void doesNotEnableSocialStreamMenuItemWhenHashtagIsEmpty() {
+        //Act
+        mSessionDetailPresenter.presentSocialStreamMenuItem("");
+
+        /*
+        This method uses TextUtils.isEmpty() to verify whether the string passed in is empty. Because
+        we've set returnDefaultValues to true in the test options in the gradle build file, TextUtils.isEmpty()
+        will always return false, so we can't actually test this method. This is a limitation of unit
+        testing support on Android, and there doesn't seem to be much we can do about it.
+         */
+//        verify(mSessionDetailView, never()).enableSocialStreamMenuItem();
     }
 
     @Test
