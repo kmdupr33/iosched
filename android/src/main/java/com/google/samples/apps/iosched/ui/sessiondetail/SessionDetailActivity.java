@@ -52,8 +52,6 @@ import com.google.samples.apps.iosched.R;
 import com.google.samples.apps.iosched.io.model.Speaker;
 import com.google.samples.apps.iosched.model.TagMetadata;
 import com.google.samples.apps.iosched.provider.ScheduleContract;
-import com.google.samples.apps.iosched.service.SessionAlarmService;
-import com.google.samples.apps.iosched.service.SessionCalendarService;
 import com.google.samples.apps.iosched.ui.BaseActivity;
 import com.google.samples.apps.iosched.ui.BrowseSessionsActivity;
 import com.google.samples.apps.iosched.ui.MyScheduleActivity;
@@ -75,8 +73,6 @@ import java.util.List;
 import javax.inject.Inject;
 
 import dagger.ObjectGraph;
-
-import static com.google.samples.apps.iosched.util.LogUtils.LOGD;
 
 /**
  * An activity that shows detail information for a session, including session title, abstract,
@@ -151,7 +147,6 @@ public class SessionDetailActivity extends BaseActivity implements
 
     private boolean mAlreadyGaveFeedback = false;
     private boolean mIsKeynote = false;
-
 
     private TextView mSubmitFeedbackView;
     private float mMaxHeaderElevation;
@@ -402,72 +397,7 @@ public class SessionDetailActivity extends BaseActivity implements
     @Override
     public void onStop() {
         super.onStop();
-        if (mInitStarred != mStarred) {
-            if (UIUtils.getCurrentTime() < mSessionStart) {
-                // Update Calendar event through the Calendar API on Android 4.0 or new versions.
-                Intent intent = null;
-                if (mStarred) {
-                    // Set up intent to add session to Calendar, if it doesn't exist already.
-                    intent = new Intent(SessionCalendarService.ACTION_ADD_SESSION_CALENDAR,
-                            mSessionUri);
-                    intent.putExtra(SessionCalendarService.EXTRA_SESSION_START,
-                            mSessionStart);
-                    intent.putExtra(SessionCalendarService.EXTRA_SESSION_END,
-                            mSessionEnd);
-                    intent.putExtra(SessionCalendarService.EXTRA_SESSION_ROOM, mRoomName);
-                    intent.putExtra(SessionCalendarService.EXTRA_SESSION_TITLE, mTitleString);
-                } else {
-                    // Set up intent to remove session from Calendar, if exists.
-                    intent = new Intent(SessionCalendarService.ACTION_REMOVE_SESSION_CALENDAR,
-                            mSessionUri);
-                    intent.putExtra(SessionCalendarService.EXTRA_SESSION_START,
-                            mSessionStart);
-                    intent.putExtra(SessionCalendarService.EXTRA_SESSION_END,
-                            mSessionEnd);
-                    intent.putExtra(SessionCalendarService.EXTRA_SESSION_TITLE, mTitleString);
-                }
-                intent.setClass(this, SessionCalendarService.class);
-                startService(intent);
-
-                if (mStarred) {
-                    setupNotification();
-                }
-            }
-        }
-    }
-
-    private void setupNotification() {
-        Intent scheduleIntent;
-
-        // Schedule session notification
-        if (UIUtils.getCurrentTime() < mSessionStart) {
-            LOGD(TAG, "Scheduling notification about session start.");
-            scheduleIntent = new Intent(
-                    SessionAlarmService.ACTION_SCHEDULE_STARRED_BLOCK,
-                    null, this, SessionAlarmService.class);
-            scheduleIntent.putExtra(SessionAlarmService.EXTRA_SESSION_START, mSessionStart);
-            scheduleIntent.putExtra(SessionAlarmService.EXTRA_SESSION_END, mSessionEnd);
-            startService(scheduleIntent);
-        } else {
-            LOGD(TAG, "Not scheduling notification about session start, too late.");
-        }
-
-        // Schedule feedback notification
-        if (UIUtils.getCurrentTime() < mSessionEnd) {
-            LOGD(TAG, "Scheduling notification about session feedback.");
-            scheduleIntent = new Intent(
-                    SessionAlarmService.ACTION_SCHEDULE_FEEDBACK_NOTIFICATION,
-                    null, this, SessionAlarmService.class);
-            scheduleIntent.putExtra(SessionAlarmService.EXTRA_SESSION_ID, mSessionId);
-            scheduleIntent.putExtra(SessionAlarmService.EXTRA_SESSION_START, mSessionStart);
-            scheduleIntent.putExtra(SessionAlarmService.EXTRA_SESSION_END, mSessionEnd);
-            scheduleIntent.putExtra(SessionAlarmService.EXTRA_SESSION_TITLE, mTitleString);
-            scheduleIntent.putExtra(SessionAlarmService.EXTRA_SESSION_ROOM, mRoomName);
-            scheduleIntent.putExtra(SessionAlarmService.EXTRA_SESSION_SPEAKERS, mSpeakers);
-            startService(scheduleIntent);
-        } else {
-            LOGD(TAG, "Not scheduling feedback notification, too late.");
-        }
+        mResponder.onStop();
     }
 
     private void setTextSelectable(TextView tv) {
@@ -613,13 +543,6 @@ public class SessionDetailActivity extends BaseActivity implements
     public void onPause() {
         super.onPause();
         mResponder.onPause();
-    }
-
-    @Override
-    public void updatePlusOneButton(String sessionUrl, boolean isKeynote) {
-        if (mPlusOneButton == null) {
-            return;
-        }
     }
 
     @Override

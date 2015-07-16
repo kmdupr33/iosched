@@ -1,6 +1,6 @@
 package com.google.samples.apps.iosched.ui.sessiondetail;
 
-import android.content.Context;
+import android.content.res.Resources;
 import android.text.TextUtils;
 
 import com.google.samples.apps.iosched.Config;
@@ -29,24 +29,22 @@ public class SessionDetailPresenter {
     //Dependencies
     private SessionDetailView mSessionDetailView;
     private SessionColorResolver mColorResolver;
-    private Context mContext;
+    private Resources mResources;
     private UserAccount mUserAccount;
 
     //Flags
-    private boolean mSessionDetailLoaded;
-    private boolean mSpeakersLoaded;
-    private boolean mHasSummaryContent;
     private String mTagsString;
-    private TagMetadata mTagMetadata;
     private boolean mAlreadyGaveFeedback;
-    private boolean mInitStarred;
+    private boolean mIsUsingLocalTimeZone;
 
     public SessionDetailPresenter(SessionDetailView sessionDetailView,
                                   SessionColorResolver colorResolver,
-                                  Context context) {
+                                  Resources resources,
+                                  boolean isUsingLocalTimeZone) {
         mSessionDetailView = sessionDetailView;
         mColorResolver = colorResolver;
-        mContext = context;
+        mResources = resources;
+        mIsUsingLocalTimeZone = isUsingLocalTimeZone;
     }
 
     public void updateTimeBasedUi(SessionDetail sessionDetail, boolean dismissedWatchLivestreamCard,
@@ -56,7 +54,7 @@ public class SessionDetailPresenter {
 
         if (sessionDetail.isLiveStreamAvailableNow() && !dismissedWatchLivestreamCard) {
             mSessionDetailView.showWatchNowCard();
-        } else if (!mAlreadyGaveFeedback && mInitStarred && sessionDetail.canGiveFeedbackNow()
+        } else if (!mAlreadyGaveFeedback && sessionDetail.isStarred() && sessionDetail.canGiveFeedbackNow()
                 && !sDismissedFeedbackCard.contains(sessionId)) {
             // show the "give feedback" card
             mSessionDetailView.showGiveFeedbackCard();
@@ -70,21 +68,21 @@ public class SessionDetailPresenter {
             // no time hint to display
             timeHint = "";
         } else if (currentTimeMillis >= sessionDetail.getSessionEnd()) {
-            timeHint = mContext.getString(R.string.time_hint_session_ended);
+            timeHint = mResources.getString(R.string.time_hint_session_ended);
         } else if (currentTimeMillis >= sessionStart) {
             long minutesAgo = (currentTimeMillis - sessionStart) / 60000;
             if (minutesAgo > 1) {
-                timeHint = mContext.getString(R.string.time_hint_started_min, minutesAgo);
+                timeHint = mResources.getString(R.string.time_hint_started_min, minutesAgo);
             } else {
-                timeHint = mContext.getString(R.string.time_hint_started_just);
+                timeHint = mResources.getString(R.string.time_hint_started_just);
             }
         } else if (countdownMillis > 0 && countdownMillis < Config.HINT_TIME_BEFORE_SESSION) {
             long millisUntil = sessionStart - currentTimeMillis;
             long minutesUntil = millisUntil / 60000 + (millisUntil % 1000 > 0 ? 1 : 0);
             if (minutesUntil > 1) {
-                timeHint = mContext.getString(R.string.time_hint_about_to_start_min, minutesUntil);
+                timeHint = mResources.getString(R.string.time_hint_about_to_start_min, minutesUntil);
             } else {
-                timeHint = mContext.getString(R.string.time_hint_about_to_start_shortly, minutesUntil);
+                timeHint = mResources.getString(R.string.time_hint_about_to_start_shortly, minutesUntil);
             }
         }
 
@@ -115,25 +113,15 @@ public class SessionDetailPresenter {
         mSessionDetailView.renderRequirements(requirements);
     }
 
-    public void presentSessionDetail(SessionDetail sessionDetail) {
-        mSessionDetailLoaded = true;
-
-        mSessionDetailView.hideRelatedVideos();
-
-        buildLinksSection(sessionDetail);
-
-        mSessionDetailView.setEmptyViewVisible(mSessionDetailLoaded && mSpeakersLoaded && !mHasSummaryContent);
-    }
-
-    public void presentSessionTitles(SessionDetail sessionDetail, Context context) {
+    public void presentSessionTitles(SessionDetail sessionDetail) {
         // Format the time this session occupies
         long sessionStart = sessionDetail.getSessionStart();
         long sessionEnd = sessionDetail.getSessionEnd();
         String roomName = sessionDetail.getRoomName();
         String subtitle = UIUtils.formatSessionSubtitle(
-                sessionStart, sessionEnd, roomName, new StringBuilder(), context);
+                sessionStart, sessionEnd, roomName, new StringBuilder(), mIsUsingLocalTimeZone);
         if (sessionDetail.hasLiveStream()) {
-            subtitle += " " + UIUtils.getLiveBadgeText(context, sessionStart, sessionEnd);
+            subtitle += " " + UIUtils.getLiveBadgeText(mResources, sessionStart, sessionEnd);
         }
         mSessionDetailView.setSessionTitle(sessionDetail.getSessionTitle());
         mSessionDetailView.setSessionSubtitle(subtitle);
@@ -148,7 +136,6 @@ public class SessionDetailPresenter {
 
         final boolean inMySchedule = sessionDetail.isInMySchedule();
         if (!isKeynote) {
-            mInitStarred = inMySchedule;
             mSessionDetailView.showStarred(inMySchedule, false);
         }
         return isKeynote;
@@ -159,7 +146,7 @@ public class SessionDetailPresenter {
         mSessionDetailView.setSessionColor(sessionColor);
     }
 
-    private void buildLinksSection(SessionDetail sessionDetail) {
+    public void buildLinksSection(SessionDetail sessionDetail) {
         long currentTimeMillis = System.currentTimeMillis();
         long sessionEnd = sessionDetail.getSessionEnd();
         if (sessionDetail.isLiveStreamAvailableNow()) {

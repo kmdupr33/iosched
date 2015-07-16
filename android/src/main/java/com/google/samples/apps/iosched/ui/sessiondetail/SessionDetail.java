@@ -223,6 +223,9 @@ public class SessionDetail {
         return mLinks;
     }
 
+    public boolean isStarred() {
+        return mInMySchedule && !isKeynote();
+    }
 
     public boolean isLiveStreamAvailableNow() {
         long currentTimeMillis = System.currentTimeMillis();

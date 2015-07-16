@@ -113,8 +113,8 @@ public class UIUtils {
     private static DateFormat sShortTimeFormat = DateFormat.getTimeInstance(DateFormat.SHORT);
 
     public static String formatSessionSubtitle(long intervalStart, long intervalEnd, String roomName, StringBuilder recycle,
-            Context context) {
-        return formatSessionSubtitle(intervalStart, intervalEnd, roomName, recycle, context, false);
+                                               boolean isUsingLocalTime, Context resources) {
+        return formatSessionSubtitle(intervalStart, intervalEnd, roomName, recycle, isUsingLocalTime, resources, false);
     }
 
     /**
@@ -122,29 +122,29 @@ public class UIUtils {
      * {@link Config#CONFERENCE_TIMEZONE}.
      */
     public static String formatSessionSubtitle(long intervalStart, long intervalEnd, String roomName, StringBuilder recycle,
-            Context context, boolean shortFormat) {
+                                               boolean isUsingLocalTime, Resources resources, boolean shortFormat) {
 
         // Determine if the session is in the past
         long currentTimeMillis = UIUtils.getCurrentTime();
         boolean conferenceEnded = currentTimeMillis > Config.CONFERENCE_END_MILLIS;
         boolean sessionEnded = currentTimeMillis > intervalEnd;
         if (sessionEnded && !conferenceEnded) {
-            return context.getString(R.string.session_finished);
+            return resources.getString(R.string.session_finished);
         }
 
         if (roomName == null) {
-            roomName = context.getString(R.string.unknown_room);
+            roomName = resources.getString(R.string.unknown_room);
         }
 
         if (shortFormat) {
             Date intervalStartDate = new Date(intervalStart);
-            sDayOfWeekFormat.setTimeZone(PrefUtils.getDisplayTimeZone(context));
-            sShortTimeFormat.setTimeZone(PrefUtils.getDisplayTimeZone(context));
+            sDayOfWeekFormat.setTimeZone(PrefUtils.getDisplayTimeZone(isUsingLocalTime));
+            sShortTimeFormat.setTimeZone(PrefUtils.getDisplayTimeZone(isUsingLocalTime));
             return sDayOfWeekFormat.format(intervalStartDate) + " "
                     + sShortTimeFormat.format(intervalStartDate);
         } else {
-            return context.getString(R.string.session_subtitle,
-                    formatIntervalTimeString(intervalStart, intervalEnd, recycle, context), roomName);
+            return resources.getString(R.string.session_subtitle,
+                    formatIntervalTimeString(intervalStart, intervalEnd, recycle, isUsingLocalTime), roomName);
         }
     }
 
@@ -171,15 +171,15 @@ public class UIUtils {
      * (unless local time was explicitly requested by the user).
      */
     public static String formatIntervalTimeString(long intervalStart, long intervalEnd,
-            StringBuilder recycle, Context context) {
+            StringBuilder recycle, boolean isUsingLocalTimeZone) {
         if (recycle == null) {
             recycle = new StringBuilder();
         } else {
             recycle.setLength(0);
         }
         Formatter formatter = new Formatter(recycle);
-        return DateUtils.formatDateRange(context, formatter, intervalStart, intervalEnd, TIME_FLAGS,
-                PrefUtils.getDisplayTimeZone(context).getID()).toString();
+        return DateUtils.formatDateRange(isUsingLocalTimeZone, formatter, intervalStart, intervalEnd, TIME_FLAGS,
+                PrefUtils.getDisplayTimeZone(isUsingLocalTimeZone).getID()).toString();
     }
 
     public static boolean isSameDayDisplay(long time1, long time2, Context context) {
@@ -210,7 +210,7 @@ public class UIUtils {
         }
     }
 
-    public static String getLiveBadgeText(final Context context, long start, long end) {
+    public static String getLiveBadgeText(final Resources context, long start, long end) {
         long now = getCurrentTime();
 
         if (now < start) {

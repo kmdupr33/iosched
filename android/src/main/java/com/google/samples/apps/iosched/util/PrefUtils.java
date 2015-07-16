@@ -109,9 +109,9 @@ public class PrefUtils  {
     public static final String PREF_SHOW_SESSION_FEEDBACK_REMINDERS
             = "pref_show_session_feedback_reminders";
 
-    public static TimeZone getDisplayTimeZone(Context context) {
+    public static TimeZone getDisplayTimeZone(boolean isUsingLocalTime) {
         TimeZone defaultTz = TimeZone.getDefault();
-        return (isUsingLocalTime(context) && defaultTz != null)
+        return (isUsingLocalTime && defaultTz != null)
                 ? defaultTz : Config.CONFERENCE_TIMEZONE;
     }
 

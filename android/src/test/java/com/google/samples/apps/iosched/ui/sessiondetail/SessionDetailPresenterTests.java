@@ -1,6 +1,6 @@
 package com.google.samples.apps.iosched.ui.sessiondetail;
 
-import android.content.Context;
+import android.content.res.Resources;
 import android.net.Uri;
 
 import com.google.samples.apps.iosched.io.model.Speaker;
@@ -39,7 +39,7 @@ public class SessionDetailPresenterTests {
     SessionColorResolver mSessionColorResolver;
 
     @Mock
-    Context mContext;
+    Resources mContext;
     private static final int DUMMY_COLOR = -1;
     private SessionDetailPresenter mSessionDetailPresenter;
 
@@ -47,7 +47,7 @@ public class SessionDetailPresenterTests {
     public void initPresenterWithMocks() {
         mSessionDetailPresenter = new SessionDetailPresenter(mSessionDetailView,
                                                              mSessionColorResolver,
-                                                             mContext);
+                                                             mContext, isUsingLocalTimeZone);
     }
 
     @Test
@@ -79,7 +79,7 @@ public class SessionDetailPresenterTests {
         String sessionTitle = "Going global with Google Play";
         SessionDetail sessionDetail = new SessionDetail(builder);
 
-        mSessionDetailPresenter.presentSessionTitles(sessionDetail, mContext);
+        mSessionDetailPresenter.presentSessionTitles(sessionDetail);
 
         verify(mSessionDetailView).setSessionTitle(sessionTitle);
         //TODO Test that subtitle creation logic works elsewhere

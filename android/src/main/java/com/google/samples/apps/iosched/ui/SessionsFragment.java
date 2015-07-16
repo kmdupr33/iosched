@@ -25,6 +25,7 @@ import android.content.CursorLoader;
 import android.content.Intent;
 import android.content.Loader;
 import android.content.SharedPreferences;
+import android.content.res.Resources;
 import android.database.Cursor;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffColorFilter;
@@ -241,7 +242,7 @@ public class SessionsFragment extends Fragment implements
 
         mDefaultSessionColor = getResources().getColor(R.color.default_session_color);
 
-        final TimeZone tz = PrefUtils.getDisplayTimeZone(getActivity());
+        final TimeZone tz = PrefUtils.getDisplayTimeZone(PrefUtils.isUsingLocalTime(getActivity()));
         mDateFormat.setTimeZone(tz);
         mTimeFormat.setTimeZone(tz);
 
@@ -714,7 +715,8 @@ public class SessionsFragment extends Fragment implements
         final long sessionEnd = mCursor.getLong(SessionsQuery.SESSION_END);
         final String roomName = mCursor.getString(SessionsQuery.ROOM_NAME);
         int sessionColor = mCursor.getInt(SessionsQuery.COLOR);
-        sessionColor = sessionColor == 0 ? getResources().getColor(R.color.default_session_color)
+        Resources resources = getResources();
+        sessionColor = sessionColor == 0 ? resources.getColor(R.color.default_session_color)
                 : sessionColor;
         int darkSessionColor = 0;
         final String snippet = mIsSearchCursor ? mCursor.getString(SessionsQuery.SNIPPET) : null;
@@ -730,7 +732,7 @@ public class SessionsFragment extends Fragment implements
         final boolean happeningNow = now >= sessionStart && now <= sessionEnd;
 
         // text that says "LIVE" if session is live, or empty if session is not live
-        final String liveNowText = hasLivestream ? " " + UIUtils.getLiveBadgeText(context,
+        final String liveNowText = hasLivestream ? " " + UIUtils.getLiveBadgeText(resources,
                 sessionStart, sessionEnd) : "";
 
         // get reference to all the views in the layout we will need
@@ -748,7 +750,7 @@ public class SessionsFragment extends Fragment implements
         }
 
         if (mNoTrackBranding) {
-            sessionColor = getResources().getColor(R.color.no_track_branding_session_color);
+            sessionColor = resources.getColor(R.color.no_track_branding_session_color);
         }
 
         darkSessionColor = UIUtils.scaleSessionColorToDefaultBG(sessionColor);
@@ -766,10 +768,10 @@ public class SessionsFragment extends Fragment implements
             }
             // colored
             photoView.setColorFilter(mNoTrackBranding
-                    ? new PorterDuffColorFilter(
-                    getResources().getColor(R.color.no_track_branding_session_tile_overlay),
+                                             ? new PorterDuffColorFilter(
+                    resources.getColor(R.color.no_track_branding_session_tile_overlay),
                     PorterDuff.Mode.SRC_ATOP)
-                    : UIUtils.makeSessionImageScrimColorFilter(darkSessionColor));
+                                             : UIUtils.makeSessionImageScrimColorFilter(darkSessionColor));
         } else {
             photoView = (ImageView) view.findViewById(R.id.session_photo);
         }
@@ -795,13 +797,14 @@ public class SessionsFragment extends Fragment implements
         // render title
         titleView.setText(sessionTitle == null ? "?" : sessionTitle);
 
+        boolean usingLocalTime = PrefUtils.isUsingLocalTime(getActivity());
         // render subtitle into either the subtitle view, or the short subtitle view, as available
         if (subtitleView != null) {
             subtitleView.setText(UIUtils.formatSessionSubtitle(
-                    sessionStart, sessionEnd, roomName, mBuffer, context) + liveNowText);
+                    sessionStart, sessionEnd, roomName, mBuffer, usingLocalTime, context) + liveNowText);
         } else if (shortSubtitleView != null) {
             shortSubtitleView.setText(UIUtils.formatSessionSubtitle(
-                    sessionStart, sessionEnd, roomName, mBuffer, context, true) + liveNowText);
+                    sessionStart, sessionEnd, roomName, mBuffer, usingLocalTime, resources, true) + liveNowText);
         }
 
         // render category
