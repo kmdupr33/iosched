@@ -39,6 +39,12 @@ public class TagFilterHolder implements Parcelable {
     private final int[] mCategories;
     private boolean mShowLiveStreamedSessions;
 
+    TagFilterHolder(TagFilterHolder tagFilterHolder) {
+        final String[] strings = tagFilterHolder.toStringArray();
+        mSelectedFilters = new HashSet<>(tagFilterHolder.mSelectedFilters);
+        mCategories = tagFilterHolder.mCategories;
+    }
+
     TagFilterHolder() {
         mSelectedFilters = new HashSet<>();
         mCategories = new int[3];

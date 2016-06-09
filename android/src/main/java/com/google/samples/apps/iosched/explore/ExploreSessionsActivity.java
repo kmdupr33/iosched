@@ -98,19 +98,14 @@ public class ExploreSessionsActivity extends BaseActivity
     // as well as the Uri used.
     private Uri mCurrentUri;
 
+    private final Reducer reducer = new Reducer();
     // The OnClickListener for the Switch widgets on the navigation filter.
     private final View.OnClickListener mDrawerItemCheckBoxClickListener =
             new View.OnClickListener() {
         @Override
         public void onClick(View v) {
-            boolean isChecked = ((CheckBox)v).isChecked();
-            TagMetadata.Tag theTag = (TagMetadata.Tag)v.getTag();
-            LOGD(TAG, "Checkbox with tag: " + theTag.getName() + " isChecked => " + isChecked);
-            if (isChecked) {
-                mTagFilterHolder.add(theTag.getId(), theTag.getCategory());
-            } else {
-                mTagFilterHolder.remove(theTag.getId(), theTag.getCategory());
-            }
+            final TagMetadata.Tag tag = (TagMetadata.Tag) v.getTag();
+            mTagFilterHolder = reducer.reduce(mTagFilterHolder, new Click(tag));
             reloadFragment();
         }
     };
@@ -490,6 +485,34 @@ public class ExploreSessionsActivity extends BaseActivity
                     checkBox.performClick();
                 }
             });
+        }
+    }
+
+    static class Reducer {
+
+        public TagFilterHolder reduce(TagFilterHolder tagFilterHolder, Click click) {
+            // Create a new holder with all the values from the old holder
+            TagFilterHolder newTagFilterHolder = new TagFilterHolder(tagFilterHolder);
+            TagMetadata.Tag theTag = click.getTag();
+            if (tagFilterHolder.contains(theTag.getId())) {
+                newTagFilterHolder.remove(theTag.getId(), theTag.getCategory());
+            } else {
+                newTagFilterHolder.add(theTag.getId(), theTag.getCategory());
+            }
+            return newTagFilterHolder;
+        }
+
+    }
+
+    static class Click {
+        private final TagMetadata.Tag tag;
+
+        public Click(TagMetadata.Tag tag) {
+            this.tag = tag;
+        }
+
+        public TagMetadata.Tag getTag() {
+            return tag;
         }
     }
 }
