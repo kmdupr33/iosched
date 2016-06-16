@@ -7,6 +7,7 @@ import android.app.LoaderManager;
 import android.content.ContentResolver;
 import android.content.Loader;
 import android.database.ContentObserver;
+import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
 
@@ -19,6 +20,7 @@ import org.junit.Test;
 import org.mockito.Matchers;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.mockito.stubbing.OngoingStubbing;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -163,6 +165,7 @@ public class PresenterFragmentImplCharacterization {
         //noinspection unchecked
         when(mModel.createCursorLoader(anyInt(), any(Uri.class), any(Bundle.class))).thenReturn(mock(Loader.class));
 
+        // Call so that idlingresource gets instantiated
         mPresenterFragSpy.onActivityCreated(null);
         mPresenterFragSpy.onCreateLoader(0, null);
 
@@ -173,13 +176,36 @@ public class PresenterFragmentImplCharacterization {
     }
 
     @Test
-    public void testOnLoadFinished() throws Exception {
-
+    public void characterizeOnLoadFinishedWithSuccess() throws Exception {
+        characterizeOnLoadFinished(true);
     }
 
     @Test
-    public void testProcessData() throws Exception {
+    public void characterizeOnLoadFinishedWithError() throws Exception {
+        characterizeOnLoadFinished(false);
+    }
 
+    private void characterizeOnLoadFinished(boolean success) {
+        mPresenterFragSpy.configure(mFragmentManager, 0, mModel, new QueryEnum[]{}, new UserActionEnum[]{});
+        final QueryEnum[] sessions = {ExploreModel.ExploreQueryEnum.SESSIONS};
+        when(mModel.getQueries()).thenReturn(sessions);
+
+        // Call so that idlingresource gets instantiated
+        mPresenterFragSpy.onActivityCreated(null);
+
+        final Cursor data = mock(Cursor.class);
+        //noinspection unchecked
+        mPresenterFragSpy.onLoadFinished(mock(Loader.class), data);
+
+        final OngoingStubbing<Boolean> when = when(mModel.readDataFromCursor(any(Cursor.class), any(QueryEnum.class)));
+        if (success) {
+            when.thenReturn(true);
+            //noinspection unchecked
+            verify(mUpdatableView).displayData(anyObject(), any(QueryEnum.class));
+        } else {
+            when.thenReturn(false);
+            verify(mUpdatableView).displayErrorMessage(any(QueryEnum.class));
+        }
     }
 
     @Test
