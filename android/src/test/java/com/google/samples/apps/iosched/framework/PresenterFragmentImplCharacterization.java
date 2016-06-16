@@ -209,11 +209,6 @@ public class PresenterFragmentImplCharacterization {
     }
 
     @Test
-    public void testOnLoaderReset() throws Exception {
-
-    }
-
-    @Test
     public void testOnUserAction() throws Exception {
 
     }
