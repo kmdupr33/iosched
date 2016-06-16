@@ -5,6 +5,7 @@ import android.app.Fragment;
 import android.app.FragmentManager;
 import android.app.LoaderManager;
 import android.content.ContentResolver;
+import android.content.Loader;
 import android.database.ContentObserver;
 import android.net.Uri;
 import android.os.Bundle;
@@ -23,6 +24,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyBoolean;
+import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.anyObject;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Matchers.isNull;
@@ -127,7 +129,7 @@ public class PresenterFragmentImplCharacterization {
     }
 
     @Test
-    public void testOnActivityCreatedIfNoInitialQueriesToLoad() throws Exception {
+    public void characterizeOnActivityCreatedIfNoInitialQueriesToLoad() throws Exception {
 
         mPresenterFragSpy.configure(mFragmentManager, 0, mModel, new QueryEnum[]{}, new UserActionEnum[]{});
 
@@ -138,7 +140,7 @@ public class PresenterFragmentImplCharacterization {
     }
 
     @Test
-    public void testOnActivityCreatedIfInitialQueriesToLoad() throws Exception {
+    public void characterizeOnActivityCreatedIfInitialQueriesToLoad() throws Exception {
 
         final ExploreModel.ExploreQueryEnum sessions = ExploreModel.ExploreQueryEnum.SESSIONS;
         mPresenterFragSpy.configure(mFragmentManager, 0, mModel, new QueryEnum[]{sessions}, new UserActionEnum[]{});
@@ -153,13 +155,21 @@ public class PresenterFragmentImplCharacterization {
     }
 
     @Test
-    public void testOnCreateLoader() throws Exception {
+    public void characterizeOnCreateLoader() throws Exception {
 
-    }
+        mPresenterFragSpy.configure(mFragmentManager, 0, mModel, new QueryEnum[]{}, new UserActionEnum[]{});
+        final QueryEnum[] sessions = {ExploreModel.ExploreQueryEnum.SESSIONS};
+        when(mModel.getQueries()).thenReturn(sessions);
+        //noinspection unchecked
+        when(mModel.createCursorLoader(anyInt(), any(Uri.class), any(Bundle.class))).thenReturn(mock(Loader.class));
 
-    @Test
-    public void testCreateLoader() throws Exception {
+        mPresenterFragSpy.onActivityCreated(null);
+        mPresenterFragSpy.onCreateLoader(0, null);
 
+        // We don't care about verifying interactions with idling resource because we don't want the presenter class mucking with
+        // idling resources anyway and we espresso tests are already in place that will tell us if our refactor messed up the idling
+        // resource notifications.
+        verify(mUpdatableView).getDataUri(QueryEnumHelper.getQueryForId(0, sessions));
     }
 
     @Test
