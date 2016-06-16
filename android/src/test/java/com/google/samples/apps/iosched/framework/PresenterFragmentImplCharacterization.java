@@ -1,7 +1,9 @@
 package com.google.samples.apps.iosched.framework;
 
 import android.app.Activity;
+import android.app.Fragment;
 import android.app.FragmentManager;
+import android.app.LoaderManager;
 import android.content.ContentResolver;
 import android.database.ContentObserver;
 import android.net.Uri;
@@ -13,13 +15,18 @@ import com.google.samples.apps.iosched.util.ThrottledContentObserver;
 
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.Matchers;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyBoolean;
+import static org.mockito.Matchers.anyObject;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Matchers.isNull;
+import static org.mockito.Matchers.notNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
@@ -36,15 +43,18 @@ public class PresenterFragmentImplCharacterization {
     @Mock
     FragmentManager mFragmentManager;
 
-    @Mock
+    UpdatableView mUpdatableView;
+
     Model mModel;
 
 
     @Before
     public void setUp() throws Exception {
         mPresenterFragSpy = spy(new PresenterFragmentImpl());
+        mUpdatableView = mock(ExploreIOFragment.class);
         MockitoAnnotations.initMocks(this);
-        when(mFragmentManager.findFragmentById(0)).thenReturn(mock(ExploreIOFragment.class));
+        mModel = mock(ExploreModel.class);
+        when(mFragmentManager.findFragmentById(0)).thenReturn((Fragment) mUpdatableView);
     }
 
     @Test
@@ -117,13 +127,29 @@ public class PresenterFragmentImplCharacterization {
     }
 
     @Test
-    public void testOnActivityCreated() throws Exception {
+    public void testOnActivityCreatedIfNoInitialQueriesToLoad() throws Exception {
 
         mPresenterFragSpy.configure(mFragmentManager, 0, mModel, new QueryEnum[]{}, new UserActionEnum[]{});
 
         mPresenterFragSpy.onActivityCreated(mock(Bundle.class));
         assertNotNull(mPresenterFragSpy.getLoaderIdlingResource());
+        //noinspection unchecked
+        verify(mUpdatableView).displayData(anyObject(), any(QueryEnum.class));
+    }
 
+    @Test
+    public void testOnActivityCreatedIfInitialQueriesToLoad() throws Exception {
+
+        final ExploreModel.ExploreQueryEnum sessions = ExploreModel.ExploreQueryEnum.SESSIONS;
+        mPresenterFragSpy.configure(mFragmentManager, 0, mModel, new QueryEnum[]{sessions}, new UserActionEnum[]{});
+
+        final LoaderManager loaderManager = mock(LoaderManager.class);
+        when(mPresenterFragSpy.getLoaderManager()).thenReturn(loaderManager);
+
+        mPresenterFragSpy.onActivityCreated(mock(Bundle.class));
+
+        assertNotNull(mPresenterFragSpy.getLoaderIdlingResource());
+        verify(loaderManager).initLoader(eq(sessions.getId()), isNull(Bundle.class), notNull(LoaderManager.LoaderCallbacks.class));
     }
 
     @Test
