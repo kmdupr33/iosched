@@ -251,24 +251,28 @@ public class PresenterFragmentImpl extends Fragment
                     manager.restartLoader((Integer) queryId, args, this);
                 } else {
                     // Query id should be an integer!
-                    LOGE(TAG, "onUserAction called with a bundle containing KEY_RUN_QUERY_ID but"
+                    logError("onUserAction called with a bundle containing KEY_RUN_QUERY_ID but"
                             + "the value is not an Integer so it's not a valid query id!");
                 }
             }
             boolean success = mModel.requestModelUpdate(action, args);
             if (!success) {
                 // User action not understood by model, even though the presenter understands it.
-                LOGE(TAG, "Model doesn't implement user action " + action.getId() + ". Have you "
+                logError("Model doesn't implement user action " + action.getId() + ". Have you "
                         + "forgotten to implement this UserActionEnum in your model, or have you "
                         + "called setValidUserActions on your presenter with a UserActionEnum that "
                         + "it shouldn't support?");
             }
         } else {
             // User action not understood.
-            LOGE(TAG, "Invalid user action " + action.getId() + ". Have you called "
+            logError("Invalid user action " + action.getId() + ". Have you called "
                     + "setValidUserActions on your presenter, with all the UserActionEnum you want "
                     + "to support?");
         }
+    }
+
+    public void logError(String message) {
+        LOGE(TAG, message);
     }
 
     /**
@@ -297,7 +301,7 @@ public class PresenterFragmentImpl extends Fragment
 
         } else {
             // Uri already has a content observer.
-            LOGE(TAG, "This presenter is already registered as a content observer for uri " + uri
+            logError("This presenter is already registered as a content observer for uri " + uri
                     + ", ignoring this call to registerContentObserverOnUri");
         }
     }

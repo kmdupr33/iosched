@@ -17,17 +17,17 @@ import com.google.samples.apps.iosched.util.ThrottledContentObserver;
 
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.Matchers;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.stubbing.OngoingStubbing;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.anyObject;
+import static org.mockito.Matchers.contains;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Matchers.isNull;
 import static org.mockito.Matchers.notNull;
@@ -209,13 +209,63 @@ public class PresenterFragmentImplCharacterization {
     }
 
     @Test
-    public void testOnUserAction() throws Exception {
+    public void characterizeOnUserActionWithValidActionAndFailedUpdate() throws Exception {
 
+        final ExploreModel.ExploreUserActionEnum reload = ExploreModel.ExploreUserActionEnum.RELOAD;
+        mPresenterFragSpy.configure(mFragmentManager, 0, mModel, new QueryEnum[]{}, new UserActionEnum[]{reload});
+        when(mModel.requestModelUpdate(any(UserActionEnum.class), any(Bundle.class))).thenReturn(false);
+
+        mPresenterFragSpy.onUserAction(reload, null);
+
+        verify(mPresenterFragSpy).logError(contains("Model doesn't implement user action"));
+    }
+
+    private interface OnUserActionAsserter {
+        void doAssert(Bundle args, LoaderManager loaderManager);
     }
 
     @Test
-    public void testRegisterContentObserverOnUri() throws Exception {
+    public void characterizeOnUserActionWithValidActionAndQueryArg() throws Exception {
 
+        characterizeOnUserActionWithValidAction(0, new OnUserActionAsserter() {
+            @Override
+            public void doAssert(Bundle args, LoaderManager loaderManager) {
+                verify(loaderManager).restartLoader(0, args, mPresenterFragSpy);
+            }
+        });
+    }
+
+    @Test
+    public void characterizeOnUserActionWithValidActionAndValidQueryArg() throws Exception {
+        characterizeOnUserActionWithValidAction("", new OnUserActionAsserter() {
+            @Override
+            public void doAssert(Bundle args, LoaderManager loaderManager) {
+                verify(mPresenterFragSpy).logError(contains("onUserAction called with a bundle containing KEY_RUN_QUERY_ID but"));
+            }
+        });
+    }
+
+    public void characterizeOnUserActionWithValidAction(Object arg, OnUserActionAsserter onUserActionAsserter) {
+        final ExploreModel.ExploreUserActionEnum reload = ExploreModel.ExploreUserActionEnum.RELOAD;
+        mPresenterFragSpy.configure(mFragmentManager, 0, mModel, new QueryEnum[]{}, new UserActionEnum[]{reload});
+
+        final LoaderManager loaderManager = mock(LoaderManager.class);
+        when(mPresenterFragSpy.getLoaderManager()).thenReturn(loaderManager);
+
+        final Bundle args = mock(Bundle.class);
+        when(args.containsKey(PresenterFragmentImpl.KEY_RUN_QUERY_ID)).thenReturn(true);
+        when(args.get(PresenterFragmentImpl.KEY_RUN_QUERY_ID)).thenReturn(arg);
+
+        mPresenterFragSpy.onUserAction(reload, args);
+
+        onUserActionAsserter.doAssert(args, loaderManager);
+    }
+
+    @Test
+    public void characterizeOnUserActionWithInvalidAction() throws Exception {
+        mPresenterFragSpy.configure(mFragmentManager, 0, mModel, new QueryEnum[]{}, new UserActionEnum[]{});
+        mPresenterFragSpy.onUserAction(ExploreModel.ExploreUserActionEnum.RELOAD, null);
+        verify(mPresenterFragSpy).logError(contains("Invalid user action"));
     }
 
     private void characterizeOnAttach(Actor actor, Asserter asserter) {
