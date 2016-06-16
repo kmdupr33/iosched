@@ -84,6 +84,11 @@ public class PresenterFragmentImpl extends Fragment
      */
     private LoaderIdlingResource mLoaderIdlingResource;
 
+    @VisibleForTesting
+    public HashMap<Uri, ThrottledContentObserver> getContentObservers() {
+        return mContentObservers;
+    }
+
     /**
      * The content observers on data changes. This is required if the Fragment is expected to react
      * to data changes that occur while the Fragment is not visible.

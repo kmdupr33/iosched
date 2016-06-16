@@ -16,11 +16,14 @@ import com.google.samples.apps.iosched.explore.ExploreModel;
 import com.google.samples.apps.iosched.util.ThrottledContentObserver;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.stubbing.OngoingStubbing;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -266,6 +269,37 @@ public class PresenterFragmentImplCharacterization {
         mPresenterFragSpy.configure(mFragmentManager, 0, mModel, new QueryEnum[]{}, new UserActionEnum[]{});
         mPresenterFragSpy.onUserAction(ExploreModel.ExploreUserActionEnum.RELOAD, null);
         verify(mPresenterFragSpy).logError(contains("Invalid user action"));
+    }
+
+    @Rule
+    public ExpectedException thrown = ExpectedException.none();
+
+    @Test
+    public void characterizeRegisterContentObserverOnUriWithInvalidArgs() throws Exception {
+
+        mPresenterFragSpy.configure(mFragmentManager, 0, mModel, new QueryEnum[]{}, new UserActionEnum[]{});
+        thrown.expect(IllegalStateException.class);
+
+        mPresenterFragSpy.registerContentObserverOnUri(Uri.EMPTY, new QueryEnum[]{});
+    }
+
+
+    @Test
+    public void characterizeRegisterContentObserverOnNewUri() throws Exception {
+
+        mPresenterFragSpy.configure(mFragmentManager, 0, mModel, new QueryEnum[]{}, new UserActionEnum[]{});
+
+        mPresenterFragSpy.registerContentObserverOnUri(Uri.EMPTY, new QueryEnum[]{ExploreModel.ExploreQueryEnum.SESSIONS});
+        assertEquals(mPresenterFragSpy.getContentObservers().size(), 1);
+    }
+
+    @Test
+    public void characterizeRegisterContentObserverWithAlreadyRegisteredUri() throws Exception {
+
+        mPresenterFragSpy.configure(mFragmentManager, 0, mModel, new QueryEnum[]{}, new UserActionEnum[]{});
+        mPresenterFragSpy.registerContentObserverOnUri(Uri.EMPTY, new QueryEnum[]{ExploreModel.ExploreQueryEnum.SESSIONS});
+        mPresenterFragSpy.registerContentObserverOnUri(Uri.EMPTY, new QueryEnum[]{ExploreModel.ExploreQueryEnum.SESSIONS});
+        verify(mPresenterFragSpy).logError(contains("This presenter is already registered"));
     }
 
     private void characterizeOnAttach(Actor actor, Asserter asserter) {
