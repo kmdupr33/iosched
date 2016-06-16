@@ -61,12 +61,12 @@ public class PresenterFragmentImpl extends Fragment
     /**
      * The UI that this Presenter controls.
      */
-    UpdatableView mUpdatableView;
+    private UpdatableView mUpdatableView;
 
     /**
      * The Model that this Presenter controls.
      */
-    Model mModel;
+    private Model mModel;
 
     /**
      * The queries to load when the {@link android.app.Activity} loading this
@@ -332,5 +332,10 @@ public class PresenterFragmentImpl extends Fragment
         setUpdatableView(ui);
         setInitialQueriesToLoad(queries);
         setValidUserActions(actions);
+    }
+
+    @VisibleForTesting
+    public UpdatableView getUpdatableView() {
+        return mUpdatableView;
     }
 }
