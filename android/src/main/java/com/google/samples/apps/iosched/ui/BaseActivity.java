@@ -80,7 +80,6 @@ import com.google.samples.apps.iosched.explore.ExploreIOActivity;
 import com.google.samples.apps.iosched.framework.Model;
 import com.google.samples.apps.iosched.framework.PresenterFragmentImpl;
 import com.google.samples.apps.iosched.framework.QueryEnum;
-import com.google.samples.apps.iosched.framework.UpdatableView;
 import com.google.samples.apps.iosched.framework.UserActionEnum;
 import com.google.samples.apps.iosched.gcm.ServerUtilities;
 import com.google.samples.apps.iosched.map.MapActivity;
@@ -1549,13 +1548,13 @@ public abstract class BaseActivity extends AppCompatActivity implements
         if (presenter == null) {
             //Create, set up and add the presenter.
             presenter = new PresenterFragmentImpl();
-            setUpPresenter(presenter, fragmentManager, updatableViewResId, model, queries, actions);
+            presenter.configure(fragmentManager, updatableViewResId, model, queries, actions);
             FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
             fragmentTransaction.add(presenter, PRESENTER_TAG);
             fragmentTransaction.commit();
         } else {
             //Set up the presenter.
-            setUpPresenter(presenter, fragmentManager, updatableViewResId, model, queries, actions);
+            presenter.configure(fragmentManager, updatableViewResId, model, queries, actions);
         }
         return presenter;
     }
@@ -1574,17 +1573,6 @@ public abstract class BaseActivity extends AppCompatActivity implements
                     "calling registerPresenterFragmentAsContentObserverForUri! Pass in the returned"
                     + " object from addPresenterFragment as first argument.");
         }
-    }
-
-    private void setUpPresenter(PresenterFragmentImpl presenter, FragmentManager fragmentManager,
-                                int updatableViewResId, Model model, QueryEnum[] queries,
-                                UserActionEnum[] actions) {
-        UpdatableView ui = (UpdatableView) fragmentManager.findFragmentById(
-                updatableViewResId);
-        presenter.setModel(model);
-        presenter.setUpdatableView(ui);
-        presenter.setInitialQueriesToLoad(queries);
-        presenter.setValidUserActions(actions);
     }
 
     /**

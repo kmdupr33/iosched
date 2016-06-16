@@ -17,6 +17,7 @@ package com.google.samples.apps.iosched.framework;
 
 import android.app.Activity;
 import android.app.Fragment;
+import android.app.FragmentManager;
 import android.app.LoaderManager;
 import android.content.Context;
 import android.content.Loader;
@@ -60,12 +61,12 @@ public class PresenterFragmentImpl extends Fragment
     /**
      * The UI that this Presenter controls.
      */
-    private UpdatableView mUpdatableView;
+    UpdatableView mUpdatableView;
 
     /**
      * The Model that this Presenter controls.
      */
-    private Model mModel;
+    Model mModel;
 
     /**
      * The queries to load when the {@link android.app.Activity} loading this
@@ -320,5 +321,16 @@ public class PresenterFragmentImpl extends Fragment
     @VisibleForTesting
     public UserActionEnum[] getValidUserActions() {
         return mValidUserActions;
+    }
+
+    public void configure(FragmentManager fragmentManager,
+                          int updatableViewResId, Model model, QueryEnum[] queries,
+                          UserActionEnum[] actions) {
+        UpdatableView ui = (UpdatableView) fragmentManager.findFragmentById(
+                updatableViewResId);
+        setModel(model);
+        setUpdatableView(ui);
+        setInitialQueriesToLoad(queries);
+        setValidUserActions(actions);
     }
 }
