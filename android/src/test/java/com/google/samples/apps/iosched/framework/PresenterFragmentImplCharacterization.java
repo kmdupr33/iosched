@@ -70,8 +70,8 @@ public class PresenterFragmentImplCharacterization {
         }, new Asserter() {
             @Override
             public void doAssert(ContentResolver contentResolver) {
-                // This characterization isn't perfect because this method gets called with specific arguments, but it will cover the chnages we are planning on making
-                verify(contentResolver).registerContentObserver(any(Uri.class), anyBoolean(), any(ThrottledContentObserver.class));
+                // This characterization isn't perfect because this method gets called with specific arguments, but it will cover the changes we are planning on making
+                verify(contentResolver).registerContentObserver(eq(Uri.EMPTY), eq(true), notNull(ThrottledContentObserver.class));
             }
         });
     }
